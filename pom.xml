@@ -95,7 +95,7 @@
 
   <scm>
     <developerConnection>scm:git:git@github.com:apache/incubator-pinot.git</developerConnection>
-    <tag>release-0.1.0-rc0</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <!-- Apache project inception year for generating correct NOTICE file for jar bundle. -->
