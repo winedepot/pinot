@@ -21,6 +21,7 @@ package org.apache.pinot.core.realtime.impl.dictionary;
 import java.io.IOException;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
+import javax.xml.bind.DatatypeConverter;
 import org.apache.pinot.common.utils.primitive.ByteArray;
 import org.apache.pinot.core.io.readerwriter.PinotDataBufferMemoryManager;
 import org.apache.pinot.core.io.writer.impl.MutableOffHeapByteArrayStore;
@@ -53,7 +54,13 @@ public class BytesOffHeapMutableDictionary extends BaseOffHeapMutableDictionary 
   @Override
   public int indexOf(Object rawValue) {
     assert rawValue instanceof byte[];
-    byte[] bytes = (byte[]) rawValue;
+    byte[] bytes;
+    // Convert hex string to byte[].
+    if (rawValue instanceof String) {
+      bytes = DatatypeConverter.parseHexBinary((String) rawValue);
+    } else {
+      bytes = (byte[]) rawValue;
+    }
     return getDictId(new ByteArray(bytes), bytes);
   }
 
@@ -81,7 +88,13 @@ public class BytesOffHeapMutableDictionary extends BaseOffHeapMutableDictionary 
   @Override
   public void index(@Nonnull Object rawValue) {
     assert rawValue instanceof byte[];
-    byte[] bytes = (byte[]) rawValue;
+    byte[] bytes;
+    // Convert hex string to byte[].
+    if (rawValue instanceof String) {
+      bytes = DatatypeConverter.parseHexBinary((String) rawValue);
+    } else {
+      bytes =  (byte[]) rawValue;
+    }
     ByteArray byteArray = new ByteArray(bytes);
     indexValue(byteArray, bytes);
     updateMinMax(byteArray);
