@@ -31,6 +31,7 @@ import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.Schema;
 import org.apache.pinot.common.segment.SegmentMetadata;
 import org.apache.pinot.common.utils.NetUtil;
+import org.apache.pinot.common.utils.primitive.ByteArray;
 import org.apache.pinot.core.data.GenericRow;
 import org.apache.pinot.core.indexsegment.IndexSegmentUtils;
 import org.apache.pinot.core.io.reader.DataFileReader;
@@ -602,6 +603,28 @@ public class MutableSegmentImpl implements MutableSegment {
     return intIterators;
   }
 
+  private IntIterator[] getSortedBitmapIntIteratorsForBytesColumn(String column) {
+    MutableDictionary dictionary = _dictionaryMap.get(column);
+    int numValues = dictionary.length();
+    IntIterator[] intIterators = new IntIterator[numValues];
+    RealtimeInvertedIndexReader invertedIndex = _invertedIndexMap.get(column);
+
+    ByteArray[] values = new ByteArray[numValues];
+    for (int i = 0; i < numValues; i++) {
+      values[i] = (ByteArray) dictionary.get(i);
+    }
+
+    long start = System.currentTimeMillis();
+    Arrays.sort(values);
+    _logger
+        .info("Spent {}ms sorting string column: {} with cardinality: {}", System.currentTimeMillis() - start, column,
+            numValues);
+
+    for (int i = 0; i < numValues; i++) {
+      intIterators[i] = invertedIndex.getDocIds(dictionary.indexOf(values[i])).getIntIterator();
+    }
+    return intIterators;
+  }
   /**
    * Returns the docIds to use for iteration when the data is sorted by the given column.
    * <p>Called only by realtime record reader.
@@ -630,6 +653,9 @@ public class MutableSegmentImpl implements MutableSegment {
         break;
       case STRING:
         iterators = getSortedBitmapIntIteratorsForStringColumn(column);
+        break;
+      case BYTES:
+        iterators = getSortedBitmapIntIteratorsForBytesColumn(column);
         break;
       default:
         throw new UnsupportedOperationException("Unsupported data type: " + dataType + " for sorted column: " + column);
