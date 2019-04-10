@@ -78,6 +78,7 @@ public class CommonConstants {
       public static final String INSTANCE_ID_KEY = "instanceId";
       public static final String DATA_DIR_KEY = "dataDir";
       public static final String ADMIN_PORT_KEY = "adminPort";
+      public static final String PREFER_HOSTNAME_IN_DEFAULT_INSTANCD_ID_KEY = "preferHostnameInDefaultInstanceId";
     }
 
     public enum TableType {
