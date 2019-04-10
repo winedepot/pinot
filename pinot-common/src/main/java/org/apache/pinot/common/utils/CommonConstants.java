@@ -78,7 +78,6 @@ public class CommonConstants {
       public static final String INSTANCE_ID_KEY = "instanceId";
       public static final String DATA_DIR_KEY = "dataDir";
       public static final String ADMIN_PORT_KEY = "adminPort";
-      public static final String PREFER_HOSTNAME_IN_DEFAULT_INSTANCD_ID_KEY = "preferHostnameInDefaultInstanceId";
     }
 
     public enum TableType {
@@ -91,6 +90,8 @@ public class CommonConstants {
         return ServerType.REALTIME;
       }
     }
+
+    public static final String PREFER_HOSTNAME_IN_DEFAULT_INSTANCD_ID_KEY = "pinot.preferHostnameInDefaultInstanceId";
 
     public static final String KEY_OF_SERVER_NETTY_PORT = "pinot.server.netty.port";
     public static final int DEFAULT_SERVER_NETTY_PORT = 8098;
