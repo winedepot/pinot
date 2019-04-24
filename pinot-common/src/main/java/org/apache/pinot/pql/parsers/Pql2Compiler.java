@@ -36,6 +36,9 @@ import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.UnbufferedTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.parser.SqlParser;
+import org.apache.calcite.sql.parser.SqlParser.Config;
 import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pinot.common.request.BrokerRequest;
@@ -58,8 +61,10 @@ import org.apache.pinot.pql.parsers.pql2.ast.RegexpLikePredicateAstNode;
 public class Pql2Compiler implements AbstractCompiler {
 
   private static class ErrorListener extends BaseErrorListener {
+
     @Override
-    public void syntaxError(@Nonnull Recognizer<?, ?> recognizer, @Nullable Object offendingSymbol, int line,
+    public void syntaxError(@Nonnull Recognizer<?, ?> recognizer, @Nullable Object offendingSymbol,
+        int line,
         int charPositionInLine, @Nonnull String msg, @Nullable RecognitionException e) {
       throw new Pql2CompilationException(msg, offendingSymbol, line, charPositionInLine, e);
     }
@@ -147,10 +152,12 @@ public class Pql2Compiler implements AbstractCompiler {
     if (isThereHaving) {
       // Check if the HAVING predicate function call is in the select list;
       // if not: add the missing function call to select list and set isInSelectList to false
-      List<FunctionCallAstNode> functionCalls = havingTreeDFSTraversalToFindFunctionCalls(havingList);
+      List<FunctionCallAstNode> functionCalls = havingTreeDFSTraversalToFindFunctionCalls(
+          havingList);
 
       if (functionCalls.isEmpty()) {
-        throw new Pql2CompilationException("HAVING clause needs to have minimum one function call comparison");
+        throw new Pql2CompilationException(
+            "HAVING clause needs to have minimum one function call comparison");
       }
 
       List<? extends AstNode> outListChildren = outList.getChildren();
@@ -160,7 +167,8 @@ public class Pql2Compiler implements AbstractCompiler {
           OutputColumnAstNode selectItem = (OutputColumnAstNode) anOutListChildren;
           if (selectItem.getChildren().get(0) instanceof FunctionCallAstNode) {
             FunctionCallAstNode function = (FunctionCallAstNode) selectItem.getChildren().get(0);
-            if (function.getExpression().equalsIgnoreCase(havingFunction.getExpression()) && function.getName()
+            if (function.getExpression().equalsIgnoreCase(havingFunction.getExpression())
+                && function.getName()
                 .equalsIgnoreCase(havingFunction.getName())) {
               functionCallIsInSelectList = true;
               break;
@@ -180,7 +188,8 @@ public class Pql2Compiler implements AbstractCompiler {
     }
   }
 
-  private List<FunctionCallAstNode> havingTreeDFSTraversalToFindFunctionCalls(HavingAstNode havingList) {
+  private List<FunctionCallAstNode> havingTreeDFSTraversalToFindFunctionCalls(
+      HavingAstNode havingList) {
     List<FunctionCallAstNode> functionCalls = new ArrayList<>();
     Stack<AstNode> astNodeStack = new Stack<>();
     astNodeStack.add(havingList);
@@ -191,7 +200,8 @@ public class Pql2Compiler implements AbstractCompiler {
           throw new Pql2CompilationException("Having predicate only compares function calls");
         }
         if (!NumberUtils.isNumber(((ComparisonPredicateAstNode) visitingNode).getValue())) {
-          throw new Pql2CompilationException("Having clause only supports comparing function result with numbers");
+          throw new Pql2CompilationException(
+              "Having clause only supports comparing function result with numbers");
         }
         functionCalls.add(((ComparisonPredicateAstNode) visitingNode).getFunction());
       } else if (visitingNode instanceof BetweenPredicateAstNode) {
@@ -199,10 +209,12 @@ public class Pql2Compiler implements AbstractCompiler {
           throw new Pql2CompilationException("Having predicate only compares function calls");
         }
         if (!NumberUtils.isNumber(((BetweenPredicateAstNode) visitingNode).getLeftValue())) {
-          throw new Pql2CompilationException("Having clause only supports comparing function result with numbers");
+          throw new Pql2CompilationException(
+              "Having clause only supports comparing function result with numbers");
         }
         if (!NumberUtils.isNumber(((BetweenPredicateAstNode) visitingNode).getRightValue())) {
-          throw new Pql2CompilationException("Having clause only supports comparing function result with numbers");
+          throw new Pql2CompilationException(
+              "Having clause only supports comparing function result with numbers");
         }
         functionCalls.add(((BetweenPredicateAstNode) visitingNode).getFunction());
       } else if (visitingNode instanceof InPredicateAstNode) {
@@ -211,7 +223,8 @@ public class Pql2Compiler implements AbstractCompiler {
         }
         for (String value : ((InPredicateAstNode) visitingNode).getValues()) {
           if (!NumberUtils.isNumber(value)) {
-            throw new Pql2CompilationException("Having clause only supports comparing function result with numbers");
+            throw new Pql2CompilationException(
+                "Having clause only supports comparing function result with numbers");
           }
         }
         functionCalls.add(((InPredicateAstNode) visitingNode).getFunction());
@@ -226,5 +239,23 @@ public class Pql2Compiler implements AbstractCompiler {
       }
     }
     return functionCalls;
+  }
+
+  public static void main(String[] args) throws Exception {
+    Pql2Compiler compiler = new Pql2Compiler();
+    String select = "select value_at(map, 'key') from T";
+
+//    String options = "select value_at(map, 'key') from T OPTIONS 'name' 'value'";
+    String filter = "select value_at(map, 'key') from T WHERE value_at(map, 'key') = 'val1' AND d1 = 'v1' and regexp_like(airlineName, '^U.*')";
+    String agg = "select sum(value_at(map, 'key')) from T WHERE value_at(map, 'key') = 'val1' group by value_at(map, 'key2')";
+    String groupBy = "select value_at(map, 'key') from T WHERE value_at(map, 'key') = 'val1' group by value_at(map, 'key2')";
+    Config config = SqlParser.configBuilder().build();
+    for (String query : new String[]{select, filter, agg, groupBy}) {
+//      BrokerRequest brokerRequest = compiler.compileToBrokerRequest(query);
+//      System.out.println("brokerRequest = " + brokerRequest);
+      SqlParser parser = SqlParser.create(query, config);
+      SqlNode sqlNode = parser.parseStmt();
+      System.out.println("sqlNode = " + sqlNode);
+    }
   }
 }

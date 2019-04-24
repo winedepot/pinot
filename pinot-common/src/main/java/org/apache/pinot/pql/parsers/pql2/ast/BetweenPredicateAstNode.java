@@ -33,7 +33,7 @@ public class BetweenPredicateAstNode extends PredicateAstNode {
   public void addChild(AstNode childNode) {
     if (childNode instanceof IdentifierAstNode) {
       IdentifierAstNode node = (IdentifierAstNode) childNode;
-      _identifier = node.getName();
+      _columnIdentifier = node.getName();
     } else if (childNode instanceof FunctionCallAstNode) {
       _function = (FunctionCallAstNode) childNode;
     } else {
@@ -51,25 +51,25 @@ public class BetweenPredicateAstNode extends PredicateAstNode {
 
   @Override
   public String toString() {
-    if (_identifier != null) {
-      return "BetweenPredicateAstNode{" + "_identifier='" + _identifier + '\'' + '}';
+    if (_columnIdentifier != null) {
+      return "BetweenPredicateAstNode{" + "_columnIdentifier='" + _columnIdentifier + '\'' + '}';
     } else if (_function != null) {
       return "BetweenPredicateAstNode{" + "_function='" + _function.toString() + '\'' + '}';
     } else {
-      return "BetweenPredicateAstNode{_identifier/_function= null}";
+      return "BetweenPredicateAstNode{_columnIdentifier/_function= null}";
     }
   }
 
   @Override
   public FilterQueryTree buildFilterQueryTree() {
-    if (_identifier == null) {
+    if (_columnIdentifier == null) {
       throw new Pql2CompilationException("Between predicate has no identifier");
     }
     if (getChildren().size() == 2) {
       try {
         LiteralAstNode left = (LiteralAstNode) getChildren().get(0);
         LiteralAstNode right = (LiteralAstNode) getChildren().get(1);
-        return new FilterQueryTree(_identifier,
+        return new FilterQueryTree(_columnIdentifier,
             Collections.singletonList("[" + left.getValueAsString() + "\t\t" + right.getValueAsString() + "]"),
             FilterOperator.RANGE, null);
       } catch (ClassCastException e) {

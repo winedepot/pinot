@@ -28,6 +28,7 @@ import org.apache.pinot.common.utils.StringUtil;
 
 public class FilterQueryTree {
   private final String column;
+  private final String subField;
   private final List<String> value;
   private final FilterOperator operator;
   private final List<FilterQueryTree> children;
@@ -37,10 +38,23 @@ public class FilterQueryTree {
     this.value = value;
     this.operator = operator;
     this.children = children;
+    this.subField = null;
+  }
+
+  public FilterQueryTree(String column, String subField, List<String> value, FilterOperator operator, List<FilterQueryTree> children) {
+    this.column = column;
+    this.value = value;
+    this.operator = operator;
+    this.children = children;
+    this.subField = subField;
   }
 
   public String getColumn() {
     return column;
+  }
+
+  public String getSubField() {
+    return subField;
   }
 
   public List<String> getValue() {
@@ -80,7 +94,11 @@ public class FilterQueryTree {
 
       Collections.sort(sortedValues);
 
-      stringBuffer.append(column).append(" ").append(operator).append(" ").append(sortedValues);
+      stringBuffer.append(column);
+      if(subField != null){
+        stringBuffer.append("[").append(subField).append("]");
+      }
+      stringBuffer.append(" ").append(operator).append(" ").append(sortedValues);
     }
 
     if (children != null) {

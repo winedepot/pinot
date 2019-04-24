@@ -63,6 +63,7 @@ struct FilterQuery {
   3: list<string> value;
   4: optional FilterOperator operator;
   5: list<i32> nestedFilterQueryIds;
+  6: optional string subField;
 }
 
 /**
@@ -165,3 +166,4 @@ struct InstanceRequest {
   4: optional bool enableTrace;
   5: optional string brokerId;
 }
+

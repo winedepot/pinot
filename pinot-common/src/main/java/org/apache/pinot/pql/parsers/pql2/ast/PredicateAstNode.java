@@ -26,7 +26,8 @@ import org.apache.pinot.common.utils.request.HavingQueryTree;
  * Common interface and implementation for predicate AST nodes.
  */
 public abstract class PredicateAstNode extends BaseAstNode {
-  protected String _identifier;
+  protected String _columnIdentifier;
+  protected String _keyIdentifier;
   protected FunctionCallAstNode _function;
 
   /**
@@ -70,7 +71,16 @@ public abstract class PredicateAstNode extends BaseAstNode {
    *
    * @return The identifier or null if there is no identifier on the left hand side of this predicate
    */
-  public String getIdentifier() {
-    return _identifier;
+  public String getColumnIdentifier() {
+    return _columnIdentifier;
+  }
+  /**
+   * Returns the name of the identifier on the left hand side of this predicate, or null if the predicate is not based
+   * on an identifier.
+   *
+   * @return The identifier or null if there is no identifier on the left hand side of this predicate
+   */
+  public String getKeyIdentifier() {
+    return _keyIdentifier;
   }
 }

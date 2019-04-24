@@ -86,6 +86,7 @@ public class RequestUtils {
 
     FilterQuery query = new FilterQuery();
     query.setColumn(tree.getColumn());
+    query.setSubField(tree.getSubField());
     query.setId(currentNodeId);
     query.setNestedFilterQueryIds(f);
     query.setOperator(tree.getOperator());

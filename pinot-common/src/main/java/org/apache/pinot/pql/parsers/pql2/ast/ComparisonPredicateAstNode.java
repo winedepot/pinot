@@ -20,6 +20,8 @@ package org.apache.pinot.pql.parsers.pql2.ast;
 
 import java.util.Collections;
 import org.apache.pinot.common.request.FilterOperator;
+import org.apache.pinot.common.request.transform.TransformExpressionTree;
+import org.apache.pinot.common.request.transform.TransformExpressionTree.ExpressionType;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.HavingQueryTree;
 import org.apache.pinot.pql.parsers.Pql2CompilationException;
@@ -29,6 +31,7 @@ import org.apache.pinot.pql.parsers.Pql2CompilationException;
  * AST node for comparison predicates.
  */
 public class ComparisonPredicateAstNode extends PredicateAstNode {
+
   private String _operand;
   private LiteralAstNode _literal;
 
@@ -47,20 +50,38 @@ public class ComparisonPredicateAstNode extends PredicateAstNode {
   @Override
   public void addChild(AstNode childNode) {
     if (childNode instanceof IdentifierAstNode) {
-      if (_identifier == null && _function == null) {
-        _identifier = ((IdentifierAstNode) childNode).getName();
-      } else if (_identifier != null) {
+      if (_columnIdentifier == null && _function == null) {
+        _columnIdentifier = ((IdentifierAstNode) childNode).getName();
+      } else if (_columnIdentifier != null) {
         throw new Pql2CompilationException("Comparison between two columns is not supported.");
       } else {
-        throw new Pql2CompilationException("Comparison between function and column is not supported.");
+        throw new Pql2CompilationException(
+            "Comparison between function and column is not supported.");
       }
     } else if (childNode instanceof FunctionCallAstNode) {
-      if (_function == null && _identifier == null) {
+
+      if (_function == null && _columnIdentifier == null) {
         _function = (FunctionCallAstNode) childNode;
+        if ("value_at".equalsIgnoreCase(_function.getName())) {
+          TransformExpressionTree expressionTree = TransformExpressionTree
+              .compileToExpressionTree(_function.getExpression());
+          if(expressionTree.getChildren().size() != 2){
+            throw new Pql2CompilationException("value_at expects two arguments value_at(<columnName>, '<keyPath>'");
+          }
+          TransformExpressionTree columnNode = expressionTree.getChildren().get(0);
+          if(columnNode.getExpressionType() == ExpressionType.IDENTIFIER){
+            _columnIdentifier = columnNode.getValue();
+          }
+          TransformExpressionTree keyNode = expressionTree.getChildren().get(1);
+          if(keyNode.getExpressionType() == ExpressionType.LITERAL){
+            _keyIdentifier = keyNode.getValue();
+          }
+        }
       } else if (_function != null) {
         throw new Pql2CompilationException("Comparison between two functions is not supported.");
       } else {
-        throw new Pql2CompilationException("Comparison between column and function is not supported.");
+        throw new Pql2CompilationException(
+            "Comparison between column and function is not supported.");
       }
     } else if (childNode instanceof LiteralAstNode) {
       LiteralAstNode node = (LiteralAstNode) childNode;
@@ -123,20 +144,23 @@ public class ComparisonPredicateAstNode extends PredicateAstNode {
 
   @Override
   public FilterQueryTree buildFilterQueryTree() {
-    if (_identifier == null) {
+
+    if (_columnIdentifier == null) {
       throw new Pql2CompilationException("Comparison predicate has no identifier");
     }
 
     if ("=".equals(_operand)) {
-      if (_identifier != null && _literal != null) {
-        return new FilterQueryTree(_identifier, Collections.singletonList(_literal.getValueAsString()),
+      if (_columnIdentifier != null && _literal != null) {
+        return new FilterQueryTree(_columnIdentifier, _keyIdentifier,
+            Collections.singletonList(_literal.getValueAsString()),
             FilterOperator.EQUALITY, null);
       } else {
         throw new Pql2CompilationException("Comparison is not between a column and a constant");
       }
     } else if ("<>".equals(_operand) || "!=".equals(_operand)) {
-      if (_identifier != null && _literal != null) {
-        return new FilterQueryTree(_identifier, Collections.singletonList(_literal.getValueAsString()),
+      if (_columnIdentifier != null && _literal != null) {
+        return new FilterQueryTree(_columnIdentifier, _keyIdentifier,
+            Collections.singletonList(_literal.getValueAsString()),
             FilterOperator.NOT, null);
       } else {
         throw new Pql2CompilationException("Comparison is not between a column and a constant");
@@ -144,11 +168,13 @@ public class ComparisonPredicateAstNode extends PredicateAstNode {
     } else {
       String comparison = createRangeStringForComparison();
       if (comparison == null) {
-        throw new Pql2CompilationException("The comparison operator is not valid/is not supported for HAVING query");
+        throw new Pql2CompilationException(
+            "The comparison operator is not valid/is not supported for HAVING query");
       }
 
-      if (_identifier != null) {
-        return new FilterQueryTree(_identifier, Collections.singletonList(comparison), FilterOperator.RANGE, null);
+      if (_columnIdentifier != null) {
+        return new FilterQueryTree(_columnIdentifier,  _keyIdentifier, Collections.singletonList(comparison),
+            FilterOperator.RANGE, null);
       } else {
         throw new Pql2CompilationException("One column is needed for comparison.");
       }
@@ -178,7 +204,8 @@ public class ComparisonPredicateAstNode extends PredicateAstNode {
     } else {
       String comparison = createRangeStringForComparison();
       if (_function != null) {
-        return new HavingQueryTree(_function.buildAggregationInfo(), Collections.singletonList(comparison),
+        return new HavingQueryTree(_function.buildAggregationInfo(),
+            Collections.singletonList(comparison),
             FilterOperator.RANGE, null);
       } else {
         throw new Pql2CompilationException("Function call is needed for comparison.");

@@ -29,6 +29,7 @@ import org.apache.pinot.pql.parsers.Pql2CompilationException;
  * AST node for function calls, such as count(foo).
  */
 public class FunctionCallAstNode extends BaseAstNode {
+
   private final String _name;
   private String _expression;
   private boolean _isInSelectList;
@@ -49,7 +50,8 @@ public class FunctionCallAstNode extends BaseAstNode {
     }
 
     FunctionCallAstNode functionCallAstNode = (FunctionCallAstNode) obj;
-    if (_name.equals(functionCallAstNode.getName()) && _expression.equals(functionCallAstNode.getExpression())) {
+    if (_name.equals(functionCallAstNode.getName()) && _expression
+        .equals(functionCallAstNode.getExpression())) {
       return true;
     } else {
       return false;
@@ -77,20 +79,27 @@ public class FunctionCallAstNode extends BaseAstNode {
 
   public AggregationInfo buildAggregationInfo() {
     String expression;
-    // COUNT aggregation function always works on '*'
-    if (_name.equalsIgnoreCase("count")) {
-      expression = "*";
-    } else {
-      List<? extends AstNode> children = getChildren();
-      if (children == null || children.size() != 1) {
-        throw new Pql2CompilationException("Aggregation function expects exact 1 argument");
-      }
-      expression = TransformExpressionTree.getStandardExpression(children.get(0));
-    }
-
     AggregationInfo aggregationInfo = new AggregationInfo();
     aggregationInfo.setAggregationType(_name);
-    aggregationInfo.putToAggregationParams("column", expression);
+    // COUNT aggregation function always works on '*'
+    if (_name.equalsIgnoreCase("count")) {
+      aggregationInfo.putToAggregationParams("column", "*");
+    } else {
+      List<? extends AstNode> children = getChildren();
+//      if (children == null || children.size() != 1) {
+//        throw new Pql2CompilationException("Aggregation function expects exact 1 argument");
+//      }
+      for (int i = 0; i < children.size(); i++) {
+
+        AstNode child = children.get(i);
+        expression = TransformExpressionTree.getStandardExpression(child);
+        if (i == 0) {
+          aggregationInfo.putToAggregationParams("column", "*");
+        }
+        aggregationInfo.putToAggregationParams("param[" + i + "]", expression);
+      }
+    }
+
     aggregationInfo.setIsInSelectList(_isInSelectList);
 
     return aggregationInfo;

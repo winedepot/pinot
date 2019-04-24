@@ -54,16 +54,16 @@ public class InPredicateAstNode extends PredicateAstNode {
   @Override
   public void addChild(AstNode childNode) {
     if (childNode instanceof IdentifierAstNode) {
-      if (_identifier == null && _function == null) {
+      if (_columnIdentifier == null && _function == null) {
         IdentifierAstNode node = (IdentifierAstNode) childNode;
-        _identifier = node.getName();
-      } else if (_identifier != null) {
+        _columnIdentifier = node.getName();
+      } else if (_columnIdentifier != null) {
         throw new Pql2CompilationException("IN predicate has more than one identifier.");
       } else {
         throw new Pql2CompilationException("IN predicate has both identifier and function.");
       }
     } else if (childNode instanceof FunctionCallAstNode) {
-      if (_function == null && _identifier == null) {
+      if (_function == null && _columnIdentifier == null) {
         _function = (FunctionCallAstNode) childNode;
       } else if (_function != null) {
         throw new Pql2CompilationException("IN predicate has more than one function.");
@@ -77,18 +77,18 @@ public class InPredicateAstNode extends PredicateAstNode {
 
   @Override
   public String toString() {
-    if (_identifier != null) {
-      return "InPredicateAstNode{" + "_identifier='" + _identifier + '\'' + '}';
+    if (_columnIdentifier != null) {
+      return "InPredicateAstNode{" + "_columnIdentifier='" + _columnIdentifier + '\'' + '}';
     } else if (_function != null) {
       return "InPredicateAstNode{" + "_function='" + _function.toString() + '\'' + '}';
     } else {
-      return "InPredicateAstNode{_identifier/_function= null";
+      return "InPredicateAstNode{_columnIdentifier/_function= null";
     }
   }
 
   @Override
   public FilterQueryTree buildFilterQueryTree() {
-    if (_identifier == null) {
+    if (_columnIdentifier == null) {
       throw new Pql2CompilationException("IN predicate has no identifier");
     }
 
@@ -108,7 +108,7 @@ public class InPredicateAstNode extends PredicateAstNode {
       filterOperator = FilterOperator.IN;
     }
 
-    return new FilterQueryTree(_identifier, new ArrayList<>(values), filterOperator, null);
+    return new FilterQueryTree(_columnIdentifier, new ArrayList<>(values), filterOperator, null);
   }
 
   @Override
