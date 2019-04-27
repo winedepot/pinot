@@ -36,9 +36,6 @@ import org.antlr.v4.runtime.TokenStream;
 import org.antlr.v4.runtime.UnbufferedTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.apache.calcite.sql.SqlNode;
-import org.apache.calcite.sql.parser.SqlParser;
-import org.apache.calcite.sql.parser.SqlParser.Config;
 import org.apache.commons.lang.math.NumberUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.pinot.common.request.BrokerRequest;
@@ -239,23 +236,5 @@ public class Pql2Compiler implements AbstractCompiler {
       }
     }
     return functionCalls;
-  }
-
-  public static void main(String[] args) throws Exception {
-    Pql2Compiler compiler = new Pql2Compiler();
-    String select = "select value_at(map, 'key') from T";
-
-//    String options = "select value_at(map, 'key') from T OPTIONS 'name' 'value'";
-    String filter = "select value_at(map, 'key') from T WHERE value_at(map, 'key') = 'val1' AND d1 = 'v1' and regexp_like(airlineName, '^U.*')";
-    String agg = "select sum(value_at(map, 'key')) from T WHERE value_at(map, 'key') = 'val1' group by value_at(map, 'key2')";
-    String groupBy = "select value_at(map, 'key') from T WHERE value_at(map, 'key') = 'val1' group by value_at(map, 'key2')";
-    Config config = SqlParser.configBuilder().build();
-    for (String query : new String[]{select, filter, agg, groupBy}) {
-//      BrokerRequest brokerRequest = compiler.compileToBrokerRequest(query);
-//      System.out.println("brokerRequest = " + brokerRequest);
-      SqlParser parser = SqlParser.create(query, config);
-      SqlNode sqlNode = parser.parseStmt();
-      System.out.println("sqlNode = " + sqlNode);
-    }
   }
 }

@@ -18,7 +18,9 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
+import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.GroupBy;
 import org.apache.pinot.common.request.QuerySource;
 import org.apache.pinot.common.request.Selection;
@@ -117,31 +119,31 @@ public class SelectAstNode extends BaseAstNode {
 
     sendBrokerRequestUpdateToChildren(brokerRequest);
 
-    // If there is a selection, set its limit if applicable
-    Selection selections = brokerRequest.getSelections();
-    if (selections != null) {
-      if (_recordLimit != -1) {
-        selections.setSize(_recordLimit);
-      }
-      if (_offset != -1) {
-        selections.setOffset(_offset);
-      }
-    }
-
-    // If there is a topN clause, set it on the group by
-    GroupBy groupBy = brokerRequest.getGroupBy();
-    if (groupBy != null) {
-      if (_topN != -1) {
-        groupBy.setTopN(_topN);
-      } else {
-        // Pinot quirk: default to top 10
-        groupBy.setTopN(10);
-      }
-    }
-
-    // Pinot quirk: if there is both a selection and an aggregation, remove the selection
-    if (brokerRequest.getAggregationsInfoSize() != 0 && brokerRequest.isSetSelections()) {
-      brokerRequest.setSelections(null);
-    }
+//    // If there is a selection, set its limit if applicable
+//    List<Expression> selections = brokerRequest.getSelectList();
+//    if (selections != null) {
+//      if (_recordLimit != -1) {
+//        selections.setSize(_recordLimit);
+//      }
+//      if (_offset != -1) {
+//        selections.setOffset(_offset);
+//      }
+//    }
+//
+//    // If there is a topN clause, set it on the group by
+//    GroupBy groupBy = brokerRequest.getGroupBy();
+//    if (groupBy != null) {
+//      if (_topN != -1) {
+//        groupBy.setTopN(_topN);
+//      } else {
+//        // Pinot quirk: default to top 10
+//        groupBy.setTopN(10);
+//      }
+//    }
+//
+//    // Pinot quirk: if there is both a selection and an aggregation, remove the selection
+//    if (brokerRequest.getAggregationsInfoSize() != 0 && brokerRequest.isSetSelections()) {
+//      brokerRequest.setSelections(null);
+//    }
   }
 }

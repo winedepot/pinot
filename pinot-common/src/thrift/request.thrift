@@ -57,80 +57,80 @@ struct QuerySource {
  * AUTO GENERATED: DO NOT EDIT
  * Filter query
  **/
-struct FilterQuery {
-  1: required i32 id; /** This should be unique within a single request **/
-  2: optional string column;
-  3: list<string> value;
-  4: optional FilterOperator operator;
-  5: list<i32> nestedFilterQueryIds;
-  6: optional string subField;
-}
+//struct FilterQuery {
+//  1: required i32 id; /** This should be unique within a single request **/
+//  2: optional string column;
+//  3: list<string> value;
+//  4: optional FilterOperator operator;
+//  5: list<i32> nestedFilterQueryIds;
+//  6: optional string subField;
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
  * Filter Query is nested but thrift stable version does not support yet (The support is there in top of the trunk but no released jars. Two concerns : stability and onus of maintaining a stable point. Also, its pretty difficult to compile thrift in Linkedin software development environment which is not geared towards c++ dev. Hence, the )
  **/
-struct FilterQueryMap {
- 1: optional map<i32,FilterQuery> filterQueryMap;
-}
+//struct FilterQueryMap {
+// 1: optional map<i32,FilterQuery> filterQueryMap;
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
  * Having Filter query
  **/
-struct HavingFilterQuery {
-  1: required i32 id; /** This should be unique within a single request **/
-  2: optional AggregationInfo aggregationInfo;
-  3: list<string> value;
-  4: optional FilterOperator operator;
-  5: list<i32> nestedFilterQueryIds;
-}
+//struct HavingFilterQuery {
+//  1: required i32 id; /** This should be unique within a single request **/
+//  2: optional AggregationInfo aggregationInfo;
+//  3: list<string> value;
+//  4: optional FilterOperator operator;
+//  5: list<i32> nestedFilterQueryIds;
+//}
 
-struct HavingFilterQueryMap {
- 1: optional map<i32,HavingFilterQuery> filterQueryMap;
-}
+//struct HavingFilterQueryMap {
+// 1: optional map<i32,HavingFilterQuery> filterQueryMap;
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
  *  Aggregation
  **/
-struct AggregationInfo {
-  1: optional string aggregationType;
-  2: optional map<string,string> aggregationParams;
-  3: optional bool isInSelectList;
-
-}
+//struct AggregationInfo {
+//  1: optional string aggregationType;
+//  2: optional map<string,string> aggregationParams;
+//  3: optional bool isInSelectList;
+//
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
  * GroupBy
  **/
-struct GroupBy {
-  1: optional list<string> columns;
-  2: optional i64 topN;
-  3: optional list<string> expressions;
-}
+//struct GroupBy {
+//  1: optional list<string> columns;
+//  2: optional i64 topN;
+//  3: optional list<string> expressions;
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
  * selection-sort : specifies how the search results should be sorted.
  * The results can be sorted based on one or multiple columns
  **/
-struct SelectionSort {
-  1: optional string column;
-  2: optional bool isAsc;
-}
+//struct SelectionSort {
+//  1: optional string column;
+//  2: optional bool isAsc;
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
  * Selection
  **/
-struct Selection {
-  1: optional list<string> selectionColumns;
-  2: optional list<SelectionSort> selectionSortSequence;
-  3: optional i32 offset = 0;
-  4: optional i32 size = 10;
-}
+//struct Selection {
+//  1: optional list<string> selectionColumns;
+//  2: optional list<SelectionSort> selectionSortSequence;
+//  3: optional i32 offset = 0;
+//  4: optional i32 size = 10;
+//}
 
 /**
  * AUTO GENERATED: DO NOT EDIT
@@ -141,18 +141,25 @@ struct BrokerRequest {
   2: optional QuerySource querySource;
   3: optional string timeInterval;
   4: optional string duration;
-  5: optional FilterQuery filterQuery;
-  6: optional list<AggregationInfo> aggregationsInfo;
-  7: optional GroupBy groupBy;
-  8: optional Selection selections;
-  9: optional FilterQueryMap filterSubQueryMap;
+//  5: optional FilterQuery filterQuery;
+//  6: optional list<AggregationInfo> aggregationsInfo;
+//  7: optional GroupBy groupBy;
+//  8: optional Selection selections;
+//  9: optional FilterQueryMap filterSubQueryMap;
  10: optional string bucketHashKey;
  11: optional bool enableTrace;
  12: optional string responseFormat;
  13: optional map<string, string> debugOptions;
  14: optional map<string, string> queryOptions;
- 15: optional HavingFilterQuery havingFilterQuery;
- 16: optional HavingFilterQueryMap havingFilterSubQueryMap;
+// 15: optional HavingFilterQuery havingFilterQuery;
+// 16: optional HavingFilterQueryMap havingFilterSubQueryMap;
+ 17: optional i32 version;
+ 18: optional list<Expression> selectList;
+ 19: optional Expression filterExpression;
+ 20: optional list<Expression> groupByList;
+ 21: optional list<Expression> orderByList;
+ 22: optional i32 limit = 10;
+ 23: optional i32 offset = 0;
 }
 
 /**
@@ -167,3 +174,28 @@ struct InstanceRequest {
   5: optional string brokerId;
 }
 
+enum ExpressionType {
+  LITERAL,
+  IDENTIFIER,
+  FUNCTION
+}
+
+struct Expression {
+  1: required ExpressionType type;
+  2: optional Function functionCall;
+  3: optional Literal literal;
+  4: optional Identifier identifier;
+}
+
+struct Identifier {
+  1: required string name;
+}
+
+struct Literal {
+  1: required string value;
+}
+
+struct Function {
+  1: required string operator;
+  2: optional list<Expression> operands;
+}
