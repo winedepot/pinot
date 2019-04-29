@@ -295,7 +295,7 @@ public class RequestUtils {
   public static boolean isSelectionQuery(BrokerRequest brokerRequest) {
     final List<Expression> selectList = brokerRequest.getSelectList();
     if (selectList == null) {
-      return false;
+      return true;
     }
     for (Expression select : selectList) {
       if (select.getFunctionCall() != null) {

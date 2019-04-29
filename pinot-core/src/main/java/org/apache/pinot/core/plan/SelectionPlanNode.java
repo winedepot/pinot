@@ -51,7 +51,7 @@ public class SelectionPlanNode implements PlanNode {
     _orderBy = brokerRequest.getOrderByList();
     _limit = brokerRequest.getLimit();
     _offset = brokerRequest.getOffset();
-    if (_selection.size() > 0) {
+    if (_limit > 0) {
       int maxDocPerNextCall = DocIdSetPlanNode.MAX_DOC_PER_CALL;
 
       // No ordering required, select minimum number of documents
@@ -69,7 +69,7 @@ public class SelectionPlanNode implements PlanNode {
 
   @Override
   public Operator run() {
-    if (_selection.size() > 0) {
+    if (_limit > 0) {
       if (_orderBy != null) {
         return new SelectionOrderByOperator(_indexSegment, _selection, _orderBy, _limit, _offset,
             _projectionPlanNode.run());
@@ -84,7 +84,7 @@ public class SelectionPlanNode implements PlanNode {
   @Override
   public void showTree(String prefix) {
     LOGGER.debug(prefix + "Segment Level Inner-Segment Plan Node:");
-    if (_selection.size() > 0) {
+    if (_limit > 0) {
       if (_orderBy != null) {
         LOGGER.debug(prefix + "Operator: SelectionOrderByOperator");
       } else {
@@ -95,7 +95,7 @@ public class SelectionPlanNode implements PlanNode {
     }
     LOGGER.debug(prefix + "Argument 0: IndexSegment - " + _indexSegment.getSegmentName());
     LOGGER.debug(prefix + "Argument 1: Selections - " + _selection);
-    if (_selection.size() > 0) {
+    if (_limit > 0) {
       LOGGER.debug(prefix + "Argument 2: Projection -");
       _projectionPlanNode.showTree(prefix + "    ");
     }

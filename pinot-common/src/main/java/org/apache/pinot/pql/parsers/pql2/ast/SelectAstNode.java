@@ -55,6 +55,7 @@ public class SelectAstNode extends BaseAstNode {
       _recordLimit = node.getCount();
       _offset = node.getOffset();
       _hasLimitClause = true;
+      super.addChild(childNode);
     } else if (childNode instanceof TableNameAstNode) {
       TableNameAstNode node = (TableNameAstNode) childNode;
       _tableName = node.getTableName();
@@ -67,6 +68,7 @@ public class SelectAstNode extends BaseAstNode {
       TopAstNode node = (TopAstNode) childNode;
       _topN = node.getCount();
       _hasTopClause = true;
+      super.addChild(childNode);
     } else if (childNode instanceof WhereAstNode) {
       if (_hasWhereClause) {
         throw new Pql2CompilationException("More than one WHERE clause specified!");

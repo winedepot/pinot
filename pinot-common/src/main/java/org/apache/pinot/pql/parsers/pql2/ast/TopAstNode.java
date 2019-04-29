@@ -19,6 +19,7 @@
 package org.apache.pinot.pql.parsers.pql2.ast;
 
 import org.apache.pinot.common.exception.QueryException;
+import org.apache.pinot.common.request.BrokerRequest;
 
 
 /**
@@ -46,5 +47,11 @@ public class TopAstNode extends BaseAstNode {
   @Override
   public String toString() {
     return "TopAstNode{" + "_count=" + _count + '}';
+  }
+
+  @Override
+  public void updateBrokerRequest(BrokerRequest brokerRequest) {
+    brokerRequest.setLimit(_count);
+    brokerRequest.setOffset(0);
   }
 }
