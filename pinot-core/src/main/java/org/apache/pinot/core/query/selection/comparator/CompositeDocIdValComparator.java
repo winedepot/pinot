@@ -84,6 +84,6 @@ public final class CompositeDocIdValComparator implements Comparator<Integer> {
   }
 
   boolean isAsc(Expression expr) {
-    return "DESC".equalsIgnoreCase(expr.getLiteral().getValue());
+    return "ASC".equalsIgnoreCase(expr.getLiteral().getValue());
   }
 }
