@@ -287,7 +287,7 @@ public class BrokerReduceService implements ReduceService<BrokerResponseNative> 
     SelectionResults selectionResults;
     int[] columnIndices;
     List<String> selectionColumns = SelectionOperatorUtils
-        .getSelectionColumns(new ArrayList<>(RequestUtils.extractSelectionColumns(selectList, orderByList)),
+        .getSelectionColumns(new ArrayList<>(RequestUtils.extractSelectionColumns(selectList, null)),
             dataSchema);
     if (orderByList != null && limit != 0) {
       // Selection order-by.
