@@ -21,8 +21,6 @@ package org.apache.pinot.broker.requesthandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.google.common.base.Splitter;
 import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -44,12 +42,16 @@ import org.apache.pinot.common.metrics.BrokerMeter;
 import org.apache.pinot.common.metrics.BrokerMetrics;
 import org.apache.pinot.common.metrics.BrokerQueryPhase;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
 import org.apache.pinot.common.request.FilterOperator;
-import org.apache.pinot.common.request.FilterQuery;
-import org.apache.pinot.common.request.FilterQueryMap;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.common.response.BrokerResponse;
 import org.apache.pinot.common.response.broker.BrokerResponseNative;
 import org.apache.pinot.common.utils.CommonConstants;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.query.reduce.BrokerReduceService;
 import org.apache.pinot.pql.parsers.Pql2Compiler;
 import org.slf4j.Logger;
@@ -317,16 +319,16 @@ public abstract class BaseBrokerRequestHandler implements BrokerRequestHandler {
    * </ul>
    */
   private void validateRequest(BrokerRequest brokerRequest) {
-    if (brokerRequest.isSetAggregationsInfo()) {
-      if (brokerRequest.isSetGroupBy()) {
-        long topN = brokerRequest.getGroupBy().getTopN();
+    if (RequestUtils.isAggregationQuery(brokerRequest)) {
+      if (brokerRequest.isSetGroupByList()) {
+        long topN = brokerRequest.getLimit() + brokerRequest.getOffset();
         if (topN > _queryResponseLimit) {
           throw new RuntimeException(
               "Value for 'TOP' (" + topN + ") exceeds maximum allowed value of " + _queryResponseLimit);
         }
       }
     } else {
-      int limit = brokerRequest.getSelections().getSize();
+      int limit = brokerRequest.getLimit() + brokerRequest.getOffset();
       if (limit > _queryResponseLimit) {
         throw new RuntimeException(
             "Value for 'LIMIT' (" + limit + ") exceeds maximum allowed value of " + _queryResponseLimit);
@@ -383,6 +385,29 @@ public abstract class BaseBrokerRequestHandler implements BrokerRequestHandler {
     }
 
     // Create a time range filter
+    Expression timeFilterQuery = new Expression(ExpressionType.FUNCTION);
+    timeFilterQuery.setIdentifier(new Identifier(timeBoundaryInfo.getTimeColumn()));
+    String timeValue = timeBoundaryInfo.getTimeValue();
+    String filterValue = isOfflineRequest ? "(*\t\t" + timeValue + ")" : "[" + timeValue + "\t\t*)";
+    timeFilterQuery.setLiteral(new Literal(filterValue));
+    Function rangeQuery = new Function(FilterOperator.RANGE.name());
+    timeFilterQuery.setFunctionCall(rangeQuery);
+
+    // Attach the time range filter to the current filters
+    Expression currentFilterQuery = brokerRequest.getFilterExpression();
+    if (currentFilterQuery != null) {
+      Expression andFilterQuery = new Expression(ExpressionType.FUNCTION);
+      Function andFunc = new Function(FilterOperator.AND.name());
+      andFunc.addToOperands(currentFilterQuery);
+      andFunc.addToOperands(timeFilterQuery);
+      andFilterQuery.setFunctionCall(andFunc);
+      brokerRequest.setFilterExpression(andFilterQuery);
+    } else {
+      brokerRequest.setFilterExpression(timeFilterQuery);
+    }
+
+    /*
+    // Create a time range filter
     FilterQuery timeFilterQuery = new FilterQuery();
     // Use -1 to prevent collision with other filters
     timeFilterQuery.setId(-1);
@@ -416,6 +441,7 @@ public abstract class BaseBrokerRequestHandler implements BrokerRequestHandler {
       brokerRequest.setFilterQuery(timeFilterQuery);
       brokerRequest.setFilterSubQueryMap(filterSubQueryMap);
     }
+    */
   }
 
   /**
@@ -433,12 +459,12 @@ public abstract class BaseBrokerRequestHandler implements BrokerRequestHandler {
   protected static class ServerStats {
     private String _serverStats;
 
-    public void setServerStats(String serverStats) {
-      _serverStats = serverStats;
-    }
-
     public String getServerStats() {
       return _serverStats;
+    }
+
+    public void setServerStats(String serverStats) {
+      _serverStats = serverStats;
     }
   }
 }

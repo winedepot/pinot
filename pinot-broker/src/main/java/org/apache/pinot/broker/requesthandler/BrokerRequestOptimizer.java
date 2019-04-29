@@ -21,7 +21,7 @@ package org.apache.pinot.broker.requesthandler;
 import java.util.Arrays;
 import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.FilterQuery;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.RequestUtils;
 
@@ -53,14 +53,16 @@ public class BrokerRequestOptimizer {
   private void optimizeFilterQueryTree(BrokerRequest brokerRequest, String timeColumn,
       OptimizationFlags optimizationFlags) {
     FilterQueryTree filterQueryTree = null;
-    FilterQuery q = brokerRequest.getFilterQuery();
 
-    if (q == null || brokerRequest.getFilterSubQueryMap() == null) {
+    final Expression filterExpression = brokerRequest.getFilterExpression();
+
+    if (filterExpression == null) {
       return;
     }
 
-    filterQueryTree =
-        RequestUtils.buildFilterQuery(q.getId(), brokerRequest.getFilterSubQueryMap().getFilterQueryMap());
+    filterQueryTree = RequestUtils.generateFilterQueryTree(brokerRequest);
+
+    //    RequestUtils.buildFilterQuery(q.getId(), brokerRequest.getFilterSubQueryMap().getFilterQueryMap());
     FilterQueryOptimizerRequest.FilterQueryOptimizerRequestBuilder builder =
         new FilterQueryOptimizerRequest.FilterQueryOptimizerRequestBuilder();
 

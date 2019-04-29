@@ -23,7 +23,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.core.indexsegment.immutable.ImmutableSegment;
 import org.apache.pinot.core.query.utils.Pair;
 import org.apache.pinot.core.segment.index.SegmentMetadataImpl;
@@ -35,7 +36,7 @@ public class Aggregation {
   private ImmutableSegment _immutableSegment;
   private SegmentMetadataImpl _metadata;
   private List<Integer> _filteredDocIds;
-  private List<AggregationInfo> _aggregationsInfo;
+  private List<Function> _aggregationsInfo;
   private List<String> _groupByColumns;
   private List<Pair> _columnFunctionList;
   private Map<String, Dictionary> _dictionaryMap;
@@ -43,21 +44,44 @@ public class Aggregation {
   private List<Pair> _allColumns;
   private long _topN = 10;
 
+  public Aggregation(List<Function> aggregationsInfo, List<String> groupByColumns, long topN) {
+    _aggregationsInfo = aggregationsInfo;
+    _topN = topN;
+    init(groupByColumns);
+  }
+
+  public Aggregation(ImmutableSegment immutableSegment, SegmentMetadataImpl metadata, List<Integer> filteredDocIds,
+      List<Function> aggregationsInfo, List<String> groupByColumns, long topN) {
+    _immutableSegment = immutableSegment;
+    _metadata = metadata;
+    _dictionaryMap = new HashMap<>();
+
+    _filteredDocIds = filteredDocIds;
+    _aggregationsInfo = aggregationsInfo;
+    _topN = topN;
+    init(groupByColumns);
+
+    for (Pair pair : _projectionColumns) {
+      String column = (String) pair.getFirst();
+      _dictionaryMap.put(column, _immutableSegment.getDictionary(column));
+    }
+  }
+
   private void init(List<String> groupByColumns) {
     _groupByColumns = groupByColumns;
     _columnFunctionList = new ArrayList<>();
     _addCountStar = false;
 
-    for (AggregationInfo aggregationInfo : _aggregationsInfo) {
-      Map<String, String> aggregationParams = aggregationInfo.getAggregationParams();
-      for (Map.Entry<String, String> entry : aggregationParams.entrySet()) {
-        String column = entry.getValue();
+    for (Function aggregationInfo : _aggregationsInfo) {
+      final List<Expression> operands = aggregationInfo.getOperands();
+      if (operands != null && !operands.isEmpty()) {
+        String column = operands.get(0).getIdentifier().getName();
         // Apparently in case of multiple group by's '*' is replaced by empty/null in brokerRequest.
         if (column == null || column.isEmpty() || column.equals("*")) {
           _addCountStar = true;
-          continue;
+        } else {
+          _columnFunctionList.add(new Pair(column, aggregationInfo.getOperator().toLowerCase()));
         }
-        _columnFunctionList.add(new Pair(column, aggregationInfo.getAggregationType().toLowerCase()));
       }
     }
 
@@ -87,29 +111,6 @@ public class Aggregation {
     // This is always the last columns.
     if (_addCountStar) {
       _allColumns.add(new Pair("*", "count"));
-    }
-  }
-
-  public Aggregation(List<AggregationInfo> aggregationsInfo, List<String> groupByColumns, long topN) {
-    _aggregationsInfo = aggregationsInfo;
-    _topN = topN;
-    init(groupByColumns);
-  }
-
-  public Aggregation(ImmutableSegment immutableSegment, SegmentMetadataImpl metadata, List<Integer> filteredDocIds,
-      List<AggregationInfo> aggregationsInfo, List<String> groupByColumns, long topN) {
-    _immutableSegment = immutableSegment;
-    _metadata = metadata;
-    _dictionaryMap = new HashMap<>();
-
-    _filteredDocIds = filteredDocIds;
-    _aggregationsInfo = aggregationsInfo;
-    _topN = topN;
-    init(groupByColumns);
-
-    for (Pair pair : _projectionColumns) {
-      String column = (String) pair.getFirst();
-      _dictionaryMap.put(column, _immutableSegment.getDictionary(column));
     }
   }
 

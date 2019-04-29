@@ -31,10 +31,11 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.utils.JsonUtils;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.pql.parsers.Pql2Compiler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,12 +71,12 @@ public class ScanBasedQueryProcessor implements Cloneable {
 
     Aggregation aggregation = null;
     List<String> groupByColumns;
-    List<AggregationInfo> aggregationsInfo = brokerRequest.getAggregationsInfo();
+    List<Function> aggregationsInfo = RequestUtils.extractFunctions(brokerRequest);
     if (aggregationsInfo != null) {
-      GroupBy groupBy = brokerRequest.getGroupBy();
-      groupByColumns = (brokerRequest.isSetGroupBy()) ? groupBy.getExpressions() : null;
-      long topN = (groupByColumns != null) ? groupBy.getTopN() : 10;
-      aggregation = new Aggregation(brokerRequest.getAggregationsInfo(), groupByColumns, topN);
+      List<Expression> groupBy = brokerRequest.getGroupByList();
+      groupByColumns = (brokerRequest.isSetGroupByList()) ? RequestUtils.extractGroupByExpression(groupBy) : null;
+      long topN = (groupByColumns != null) ? brokerRequest.getLimit() : 10;
+      aggregation = new Aggregation(RequestUtils.extractFunctions(brokerRequest), groupByColumns, topN);
     }
 
     int numDocsScanned = 0;

@@ -25,10 +25,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.FilterOperator;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.segment.ReadMode;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.RequestUtils;
@@ -46,17 +46,14 @@ import org.slf4j.LoggerFactory;
 
 class SegmentQueryProcessor {
   private static final Logger LOGGER = LoggerFactory.getLogger(SegmentQueryProcessor.class);
-
-  private File _segmentDir;
-  private Set<String> _mvColumns;
-  private Map<String, int[]> _mvColumnArrayMap;
-
   private final SegmentMetadataImpl _metadata;
   private final ImmutableSegment _immutableSegment;
-
   private final String _tableName;
   private final String _segmentName;
   private final int _totalDocs;
+  private File _segmentDir;
+  private Set<String> _mvColumns;
+  private Map<String, int[]> _mvColumnArrayMap;
 
   SegmentQueryProcessor(File segmentDir)
       throws Exception {
@@ -98,23 +95,24 @@ class SegmentQueryProcessor {
     List<Integer> filteredDocIds = filterDocIds(filterQueryTree, null);
 
     ResultTable result = null;
-    if (brokerRequest.isSetAggregationsInfo()) {
+    if (RequestUtils.isAggregationQuery(brokerRequest)) {
       // Aggregation only
-      if (!brokerRequest.isSetGroupBy()) {
+      if (!brokerRequest.isSetGroupByList()) {
         Aggregation aggregation =
-            new Aggregation(_immutableSegment, _metadata, filteredDocIds, brokerRequest.getAggregationsInfo(), null,
-                10);
+            new Aggregation(_immutableSegment, _metadata, filteredDocIds, RequestUtils.extractFunctions(brokerRequest),
+                null, 10);
         result = aggregation.run();
       } else { // Aggregation GroupBy
-        GroupBy groupBy = brokerRequest.getGroupBy();
+        List<Expression> groupBy = brokerRequest.getGroupByList();
         Aggregation aggregation =
-            new Aggregation(_immutableSegment, _metadata, filteredDocIds, brokerRequest.getAggregationsInfo(),
-                groupBy.getExpressions(), groupBy.getTopN());
+            new Aggregation(_immutableSegment, _metadata, filteredDocIds, RequestUtils.extractFunctions(brokerRequest),
+                RequestUtils.extractGroupByExpression(groupBy), brokerRequest.getLimit());
         result = aggregation.run();
       }
     } else {// Only Selection
-      if (brokerRequest.isSetSelections()) {
-        List<String> columns = brokerRequest.getSelections().getSelectionColumns();
+      if (RequestUtils.isSelectionQuery(brokerRequest)) {
+        List<String> columns = new ArrayList<>(
+            RequestUtils.extractSelectionColumns(brokerRequest.getSelectList(), brokerRequest.getOrderByList()));
         if (columns.contains("*")) {
           columns = new ArrayList<>(_immutableSegment.getPhysicalColumnNames());
         }
@@ -147,30 +145,27 @@ class SegmentQueryProcessor {
 
     // Check if any column in the query does not exist in the segment.
     Set<String> allColumns = _metadata.getAllColumns();
-    if (brokerRequest.isSetAggregationsInfo()) {
-      for (AggregationInfo aggregationInfo : brokerRequest.getAggregationsInfo()) {
-        Map<String, String> aggregationParams = aggregationInfo.getAggregationParams();
-
-        for (String column : aggregationParams.values()) {
-          if (column != null && !column.isEmpty() && !column.equals("*") && !allColumns.contains(column)) {
-            LOGGER.debug("Skipping segment '{}', as it does not have column '{}'", _metadata.getName(), column);
-            return true;
-          }
+    if (RequestUtils.isAggregationQuery(brokerRequest)) {
+      for (Function aggregationInfo : RequestUtils.extractFunctions(brokerRequest)) {
+        String column = aggregationInfo.getOperands().get(0).getIdentifier().getName();
+        if (column != null && !column.isEmpty() && !column.equals("*") && !allColumns.contains(column)) {
+          LOGGER.debug("Skipping segment '{}', as it does not have column '{}'", _metadata.getName(), column);
+          return true;
         }
 
-        GroupBy groupBy = brokerRequest.getGroupBy();
+        List<Expression> groupBy = brokerRequest.getGroupByList();
         if (groupBy != null) {
-          for (String column : groupBy.getExpressions()) {
-            if (!allColumns.contains(column)) {
-              LOGGER.debug("Skipping segment '{}', as it does not have column '{}'", _metadata.getName(), column);
+          for (String groupbyColumn : RequestUtils.extractGroupByExpression(groupBy)) {
+            if (!allColumns.contains(groupbyColumn)) {
+              LOGGER.debug("Skipping segment '{}', as it does not have column '{}'", _metadata.getName(), groupbyColumn);
               return true;
             }
           }
         }
       }
     } else {
-      if (brokerRequest.isSetSelections()) {
-        for (String column : brokerRequest.getSelections().getSelectionColumns()) {
+      if (RequestUtils.isSelectionQuery(brokerRequest)) {
+        for (String column : RequestUtils.extractSelectionColumns(brokerRequest.getSelectList(), brokerRequest.getOrderByList())) {
           if (!allColumns.contains(column)) {
             LOGGER.debug("Skipping segment '{}', as it does not have column '{}'", _metadata.getName(), column);
             return true;
