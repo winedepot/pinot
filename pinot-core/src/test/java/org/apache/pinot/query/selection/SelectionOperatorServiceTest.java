@@ -25,8 +25,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.PriorityQueue;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.common.response.broker.SelectionResults;
 import org.apache.pinot.common.utils.DataSchema;
 import org.apache.pinot.common.utils.DataTable;
@@ -61,18 +63,25 @@ public class SelectionOperatorServiceTest {
       {1L, 2.0F, 3.0, 4, "5", new long[]{6L}, new float[]{7.0F}, new double[]{8.0}, new int[]{9}, new String[]{"10"}};
   private final Serializable[] _compatibleRow2 =
       {11L, 12.0F, 13.0, 14, "15", new long[]{16L}, new float[]{17.0F}, new double[]{18.0}, new int[]{19}, new String[]{"20"}};
-  private final Selection _selectionOrderBy = new Selection();
+  private final List<Expression> _selectList = new ArrayList<>();
+  private final List<Expression> _orderByList = new ArrayList<>();
+  private int _limit = 2;
+  private int _offset = 1;
 
   @BeforeClass
   public void setUp() {
     // SELECT * FROM table ORDER BY int DESC LIMIT 1, 2.
-    _selectionOrderBy.setSelectionColumns(Arrays.asList(_columnNames));
-    SelectionSort selectionSort = new SelectionSort();
-    selectionSort.setColumn("int");
-    selectionSort.setIsAsc(false);
-    _selectionOrderBy.setSelectionSortSequence(Collections.singletonList(selectionSort));
-    _selectionOrderBy.setSize(2);
-    _selectionOrderBy.setOffset(1);
+    for (String col : _columnNames) {
+      Expression colExpr = new Expression(ExpressionType.IDENTIFIER);
+      colExpr.setIdentifier(new Identifier(col));
+      _selectList.add(colExpr);
+    }
+    Expression orderByExpr = new Expression(ExpressionType.IDENTIFIER);
+    orderByExpr.setIdentifier(new Identifier("int"));
+    orderByExpr.setLiteral(new Literal("DESC"));
+    _orderByList.add(orderByExpr);
+    _limit = 2;
+    _offset = 1;
   }
 
   @Test
@@ -103,7 +112,8 @@ public class SelectionOperatorServiceTest {
 
   @Test
   public void testCompatibleRowsMergeWithOrdering() {
-    SelectionOperatorService selectionOperatorService = new SelectionOperatorService(_selectionOrderBy, _dataSchema);
+    SelectionOperatorService selectionOperatorService =
+        new SelectionOperatorService(_selectList, _orderByList, _limit, _offset, _dataSchema);
     PriorityQueue<Serializable[]> mergedRows = selectionOperatorService.getRows();
     Collection<Serializable[]> rowsToMerge1 = new ArrayList<>(2);
     rowsToMerge1.add(_row1.clone());
@@ -111,7 +121,7 @@ public class SelectionOperatorServiceTest {
     Collection<Serializable[]> rowsToMerge2 = new ArrayList<>(2);
     rowsToMerge2.add(_compatibleRow1.clone());
     rowsToMerge2.add(_compatibleRow2.clone());
-    int maxNumRows = _selectionOrderBy.getOffset() + _selectionOrderBy.getSize();
+    int maxNumRows = _offset + _limit;
     SelectionOperatorUtils.mergeWithOrdering(mergedRows, rowsToMerge1, maxNumRows);
     SelectionOperatorUtils.mergeWithOrdering(mergedRows, rowsToMerge2, maxNumRows);
     Assert.assertEquals(mergedRows.size(), 3);
@@ -175,7 +185,7 @@ public class SelectionOperatorServiceTest {
   @Test
   public void testCompatibleRowsRenderSelectionResultsWithOrdering() {
     SelectionOperatorService selectionOperatorService =
-        new SelectionOperatorService(_selectionOrderBy, _upgradedDataSchema);
+        new SelectionOperatorService(_selectList, _orderByList, _limit, _offset, _upgradedDataSchema);
     PriorityQueue<Serializable[]> rows = selectionOperatorService.getRows();
     rows.offer(_row1.clone());
     rows.offer(_compatibleRow1.clone());

@@ -44,8 +44,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT avg(DepDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having avg(DepDelay) BETWEEN 100 AND 200");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof BetweenComparison, true);
     BetweenComparison betweenComparison = (BetweenComparison) havingClauseComparisonTree.getComparisonFunction();
@@ -71,8 +70,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT count(*) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having count(*) = 200");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof EqualComparison, true);
     EqualComparison equalComparison = (EqualComparison) havingClauseComparisonTree.getComparisonFunction();
@@ -97,8 +95,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT min(ArrivalDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having min(ArrivalDelay) >= 500");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof GreaterEqualComparison, true);
     GreaterEqualComparison greaterEqualComparison =
@@ -124,8 +121,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT min(ArrivalDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having min(ArrivalDelay) > 500");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof GreaterThanComparison, true);
     GreaterThanComparison greaterThanComparison =
@@ -151,8 +147,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT max(ArrivalDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having max(ArrivalDelay) <= 500");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof LessEqualComparison, true);
     LessEqualComparison lessEqualComparison = (LessEqualComparison) havingClauseComparisonTree.getComparisonFunction();
@@ -177,8 +172,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT max(ArrivalDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having max(ArrivalDelay) < 500");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof LessThanComparison, true);
     LessThanComparison lessThanComparison = (LessThanComparison) havingClauseComparisonTree.getComparisonFunction();
@@ -203,8 +197,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT max(ArrivalDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having max(ArrivalDelay) <> 500");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof NotEqualComparison, true);
     NotEqualComparison notEqualComparison = (NotEqualComparison) havingClauseComparisonTree.getComparisonFunction();
@@ -229,8 +222,7 @@ public class HavingClauseComparisonTests {
     BrokerRequest brokerRequest = compiler.compileToBrokerRequest(
         "SELECT count(*) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having count(*) in (1000,2000,3000,4000,5000)");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof InAndNotInComparison, true);
     InAndNotInComparison inAndNotInComparison =
@@ -266,8 +258,7 @@ public class HavingClauseComparisonTests {
     brokerRequest = compiler.compileToBrokerRequest(
         "SELECT count(*) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having count(*) not in (1000,2000,3000,4000,5000)");
     havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), null);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction() instanceof InAndNotInComparison, true);
     inAndNotInComparison = (InAndNotInComparison) havingClauseComparisonTree.getComparisonFunction();
@@ -307,8 +298,7 @@ public class HavingClauseComparisonTests {
         "SELECT avg(DepDelay) FROM mytable WHERE DaysSinceEpoch >= 16312 group by Carrier having (avg(DepDelay) BETWEEN 100 AND 200 "
             + "AND count(*) >= 100) or (max(ArrivalDelay) <= 500 AND min(ArrivalDelay) > 200)");
     HavingClauseComparisonTree havingClauseComparisonTree = HavingClauseComparisonTree
-        .buildHavingClauseComparisonTree(brokerRequest.getHavingFilterQuery(),
-            brokerRequest.getHavingFilterSubQueryMap());
+        .buildHavingClauseComparisonTree(brokerRequest.getHavingExpression());
     Assert.assertEquals(havingClauseComparisonTree.getFilterOperator(), FilterOperator.OR);
     Assert.assertEquals(havingClauseComparisonTree.getComparisonFunction(), null);
     List<HavingClauseComparisonTree> subComparisonTree = havingClauseComparisonTree.getSubComparisonTree();

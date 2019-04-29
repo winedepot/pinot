@@ -21,9 +21,11 @@ package org.apache.pinot.core.plan.maker;
 import java.util.List;
 import java.util.Objects;
 import org.apache.pinot.common.data.MetricFieldSpec;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.segment.SegmentMetadata;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.query.aggregation.function.AggregationFunctionUtils;
 
@@ -48,23 +50,22 @@ public class BrokerRequestPreProcessor {
    * @param brokerRequest broker request.
    */
   public static void preProcess(List<IndexSegment> indexSegments, BrokerRequest brokerRequest) {
-    if (brokerRequest.isSetAggregationsInfo()) {
-      List<AggregationInfo> aggregationsInfo = brokerRequest.getAggregationsInfo();
+    if (RequestUtils.isAggregationQuery(brokerRequest)) {
+      List<Function> aggregationsInfo = RequestUtils.extractFunctions(brokerRequest);
       rewriteFastHllColumnName(indexSegments, aggregationsInfo);
     }
   }
 
   /**
    * Rewrite 'fasthll' column name.
-   *
-   * @param indexSegments list of index segments.
+   *  @param indexSegments list of index segments.
    * @param aggregationsInfo list of aggregation info.
    */
   private static void rewriteFastHllColumnName(List<IndexSegment> indexSegments,
-      List<AggregationInfo> aggregationsInfo) {
+      List<Function> aggregationsInfo) {
     // Consistent check.
-    for (AggregationInfo aggregationInfo : aggregationsInfo) {
-      if (aggregationInfo.getAggregationType().equalsIgnoreCase("fasthll")) {
+    for (Function aggregationInfo : aggregationsInfo) {
+      if (aggregationInfo.getOperator().equalsIgnoreCase("fasthll")) {
         String column = AggregationFunctionUtils.getColumn(aggregationInfo);
         boolean isFirstSegment = true;
         String firstSegmentName = null;
@@ -77,7 +78,7 @@ public class BrokerRequestPreProcessor {
             firstSegmentName = segmentMetadata.getName();
             hllDerivedColumn = segmentMetadata.getDerivedColumn(column, MetricFieldSpec.DerivedMetricType.HLL);
             if (hllDerivedColumn != null) {
-              aggregationInfo.putToAggregationParams(AggregationFunctionUtils.COLUMN_KEY, hllDerivedColumn);
+              aggregationInfo.getOperands().get(0).setIdentifier(new Identifier(hllDerivedColumn));
             }
           } else {
             // Perform consistency check on other index segments.

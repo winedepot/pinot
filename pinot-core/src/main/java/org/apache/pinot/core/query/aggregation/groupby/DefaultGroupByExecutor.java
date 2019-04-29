@@ -18,9 +18,10 @@
  */
 package org.apache.pinot.core.query.aggregation.groupby;
 
+import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.core.common.BlockValSet;
 import org.apache.pinot.core.operator.blocks.TransformBlock;
@@ -67,7 +68,7 @@ public class DefaultGroupByExecutor implements GroupByExecutor {
    * @param numGroupsLimit Limit on number of aggregation groups returned in the result
    * @param transformOperator Transform operator
    */
-  public DefaultGroupByExecutor(@Nonnull AggregationFunctionContext[] functionContexts, @Nonnull GroupBy groupBy,
+  public DefaultGroupByExecutor(@Nonnull AggregationFunctionContext[] functionContexts, @Nonnull List<Expression> groupBy,
       int maxInitialResultHolderCapacity, int numGroupsLimit, @Nonnull TransformOperator transformOperator) {
     // Initialize aggregation functions and expressions
     _numFunctions = functionContexts.length;
@@ -82,7 +83,11 @@ public class DefaultGroupByExecutor implements GroupByExecutor {
     }
 
     // Initialize group-by expressions
-    List<String> groupByExpressionStrings = groupBy.getExpressions();
+    List<String> groupByExpressionStrings = new ArrayList<>();
+    for(Expression groupByExpr: groupBy) {
+      String expr = groupByExpr.getIdentifier().getName();
+      groupByExpressionStrings.add(expr);
+    }
     int numGroupByExpressions = groupByExpressionStrings.size();
     boolean hasMVGroupByExpression = false;
     boolean hasNoDictionaryGroupByExpression = false;

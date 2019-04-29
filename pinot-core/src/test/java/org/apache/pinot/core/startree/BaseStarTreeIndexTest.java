@@ -76,8 +76,8 @@ public abstract class BaseStarTreeIndexTest {
       _brokerRequest = COMPILER.compileToBrokerRequest(query);
 
       _groupByColumns = new HashSet<>();
-      if (_brokerRequest.isSetGroupBy()) {
-        for (String groupByExpression : _brokerRequest.getGroupBy().getExpressions()) {
+      if (_brokerRequest.isSetGroupByList()) {
+        for (String groupByExpression : RequestUtils.extractGroupByExpression(_brokerRequest.getGroupByList())) {
           TransformExpressionTree.compileToExpressionTree(groupByExpression).getColumns(_groupByColumns);
         }
       }

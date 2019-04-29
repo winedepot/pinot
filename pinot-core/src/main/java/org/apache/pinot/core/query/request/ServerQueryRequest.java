@@ -18,16 +18,17 @@
  */
 package org.apache.pinot.core.query.request;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.pinot.common.metrics.ServerMetrics;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.InstanceRequest;
-import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.RequestUtils;
@@ -87,12 +88,24 @@ public class ServerQueryRequest {
       _filterColumns = null;
     }
 
+    final List<Expression> selectList = _brokerRequest.getSelectList();
+    List<Function> aggregationsInfos = new ArrayList<>();
+    List<Identifier> selections = new ArrayList<>();
+    if (selectList != null) {
+      for (Expression selectExpression : selectList) {
+        if (selectExpression.getFunctionCall() != null) {
+          aggregationsInfos.add(selectExpression.getFunctionCall());
+        }
+        if (selectExpression.getIdentifier() != null) {
+          selections.add(selectExpression.getIdentifier());
+        }
+      }
+    }
     // Aggregation
-    List<AggregationInfo> aggregationsInfo = _brokerRequest.getAggregationsInfo();
-    if (aggregationsInfo != null) {
+    if (!aggregationsInfos.isEmpty()) {
       _aggregationExpressions = new HashSet<>();
-      for (AggregationInfo aggregationInfo : aggregationsInfo) {
-        if (!aggregationInfo.getAggregationType().equalsIgnoreCase(AggregationFunctionType.COUNT.getName())) {
+      for (Function aggregationInfo : aggregationsInfos) {
+        if (!aggregationInfo.getOperator().equalsIgnoreCase(AggregationFunctionType.COUNT.getName())) {
           _aggregationExpressions.add(
               TransformExpressionTree.compileToExpressionTree(AggregationFunctionUtils.getColumn(aggregationInfo)));
         }
@@ -104,27 +117,29 @@ public class ServerQueryRequest {
       _aggregationColumns = null;
     }
 
+    _brokerRequest.getOrderByList();
+
+    // Selection
+    if (!selections.isEmpty()) {
+      _selectionColumns =
+          RequestUtils.extractSelectionColumns(_brokerRequest.getSelectList(), _brokerRequest.getOrderByList());
+      _allColumns.addAll(_selectionColumns);
+    } else {
+      _selectionColumns = null;
+    }
+
     // Group-by
-    GroupBy groupBy = _brokerRequest.getGroupBy();
-    if (groupBy != null) {
+    final List<Expression> groupByList = _brokerRequest.getGroupByList();
+    if (groupByList != null && !groupByList.isEmpty()) {
       _groupByExpressions = new HashSet<>();
-      for (String expression : groupBy.getExpressions()) {
-        _groupByExpressions.add(TransformExpressionTree.compileToExpressionTree(expression));
+      for (Expression expression : groupByList) {
+        _groupByExpressions.add(TransformExpressionTree.compileToExpressionTree(expression.getIdentifier().getName()));
       }
       _groupByColumns = RequestUtils.extractColumnsFromExpressions(_groupByExpressions);
       _allColumns.addAll(_groupByColumns);
     } else {
       _groupByExpressions = null;
       _groupByColumns = null;
-    }
-
-    // Selection
-    Selection selection = _brokerRequest.getSelections();
-    if (selection != null) {
-      _selectionColumns = RequestUtils.extractSelectionColumns(selection);
-      _allColumns.addAll(_selectionColumns);
-    } else {
-      _selectionColumns = null;
     }
   }
 

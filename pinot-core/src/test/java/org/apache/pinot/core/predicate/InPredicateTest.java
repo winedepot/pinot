@@ -19,6 +19,7 @@
 package org.apache.pinot.core.predicate;
 
 import java.util.Arrays;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.utils.EqualityUtils;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
@@ -69,7 +70,7 @@ public class InPredicateTest {
     Arrays.sort(actualValues);
 
     Assert.assertEquals(actualValues, expectedValues);
-    Assert.assertTrue(EqualityUtils.isEqualIgnoreOrder(filterQueryTree.getValue(), Arrays.asList(expectedValues)));
+    Assert.assertTrue(EqualityUtils.isEqualIgnoreOrder(filterQueryTree.getValue(), Arrays.asList(StringUtils.join(expectedValues, "\t\t"))));
   }
 }
 

@@ -18,7 +18,10 @@
  */
 package org.apache.pinot.core.common.datatable;
 
+import java.util.List;
 import javax.annotation.Nonnull;
+import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.utils.DataSchema;
 
 

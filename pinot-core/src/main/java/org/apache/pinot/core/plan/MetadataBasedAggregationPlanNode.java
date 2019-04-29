@@ -21,7 +21,7 @@ package org.apache.pinot.core.plan;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.segment.SegmentMetadata;
 import org.apache.pinot.core.common.DataSource;
 import org.apache.pinot.core.common.Operator;
@@ -41,7 +41,7 @@ public class MetadataBasedAggregationPlanNode implements PlanNode {
   private static final Logger LOGGER = LoggerFactory.getLogger(MetadataBasedAggregationPlanNode.class);
 
   private final IndexSegment _indexSegment;
-  private final List<AggregationInfo> _aggregationInfos;
+  private final List<Function> _aggregationInfos;
 
   /**
    * Constructor for the class.
@@ -49,7 +49,7 @@ public class MetadataBasedAggregationPlanNode implements PlanNode {
    * @param indexSegment Segment to process
    * @param aggregationInfos List of aggregation info
    */
-  public MetadataBasedAggregationPlanNode(IndexSegment indexSegment, List<AggregationInfo> aggregationInfos) {
+  public MetadataBasedAggregationPlanNode(IndexSegment indexSegment, List<Function> aggregationInfos) {
     _indexSegment = indexSegment;
     _aggregationInfos = aggregationInfos;
   }

@@ -22,20 +22,22 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.utils.DataSchema;
 import org.apache.pinot.common.utils.DataTable;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.common.ObjectSerDeUtils;
 import org.apache.pinot.core.query.aggregation.AggregationFunctionContext;
 import org.apache.pinot.core.query.aggregation.function.AggregationFunction;
 import org.apache.pinot.core.query.aggregation.function.AggregationFunctionUtils;
+import org.apache.pinot.core.query.selection.SelectionOperatorUtils;
 
 
 /**
@@ -291,10 +293,12 @@ public class DataTableBuilder {
    */
   public static DataTable buildEmptyDataTable(BrokerRequest brokerRequest)
       throws IOException {
+
+
     // Selection query.
-    if (brokerRequest.isSetSelections()) {
-      Selection selection = brokerRequest.getSelections();
-      List<String> selectionColumns = selection.getSelectionColumns();
+    if (RequestUtils.isSelectionQuery(brokerRequest)) {
+      List<Expression> selectList = brokerRequest.getSelectList();
+      List<String> selectionColumns = SelectionOperatorUtils.getSelectionColumns(selectList);
       int numSelectionColumns = selectionColumns.size();
       DataSchema.ColumnDataType[] columnDataTypes = new DataSchema.ColumnDataType[numSelectionColumns];
       // Use STRING column data type as default for selection query.
@@ -305,13 +309,13 @@ public class DataTableBuilder {
     }
 
     // Aggregation query.
-    List<AggregationInfo> aggregationsInfo = brokerRequest.getAggregationsInfo();
+    List<Expression> aggregationsInfo = brokerRequest.getSelectList();
     int numAggregations = aggregationsInfo.size();
     AggregationFunctionContext[] aggregationFunctionContexts = new AggregationFunctionContext[numAggregations];
     for (int i = 0; i < numAggregations; i++) {
       aggregationFunctionContexts[i] = AggregationFunctionUtils.getAggregationFunctionContext(aggregationsInfo.get(i));
     }
-    if (brokerRequest.isSetGroupBy()) {
+    if (brokerRequest.getGroupByList()!=null && !brokerRequest.getGroupByList().isEmpty()) {
       // Aggregation group-by query.
 
       String[] columnNames = new String[]{"functionName", "GroupByResultMap"};

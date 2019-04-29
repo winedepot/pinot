@@ -18,7 +18,7 @@
  */
 package org.apache.pinot.core.query.reduce;
 
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Function;
 import org.slf4j.LoggerFactory;
 
 
@@ -27,7 +27,7 @@ public class BetweenComparison extends ComparisonFunction {
   private double _rightValue;
   private double _leftValue;
 
-  public BetweenComparison(String leftValue, String rightValue, AggregationInfo aggregationInfo) {
+  public BetweenComparison(String leftValue, String rightValue, Function aggregationInfo) {
     super(aggregationInfo);
     try {
       this._leftValue = Double.parseDouble(leftValue);
@@ -41,11 +41,7 @@ public class BetweenComparison extends ComparisonFunction {
   public boolean isComparisonValid(String aggResult) {
     try {
       double middleValue = Double.parseDouble(aggResult);
-      if (middleValue >= _leftValue && middleValue <= _rightValue) {
-        return true;
-      } else {
-        return false;
-      }
+      return middleValue >= _leftValue && middleValue <= _rightValue;
     } catch (Exception e) {
       LOGGER.info("Exception in applying HAVING clause BETWEEN predicate", e);
       return false;

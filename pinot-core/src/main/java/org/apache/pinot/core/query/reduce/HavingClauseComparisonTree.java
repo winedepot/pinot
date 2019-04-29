@@ -19,13 +19,11 @@
 package org.apache.pinot.core.query.reduce;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.FilterOperator;
-import org.apache.pinot.common.request.HavingFilterQuery;
-import org.apache.pinot.common.request.HavingFilterQueryMap;
+import org.apache.pinot.common.request.Function;
 
 //This class provides a tree representation of HAVING clause predicate
 
@@ -41,8 +39,9 @@ public class HavingClauseComparisonTree {
     _subComparisonTree = subComparisonTree;
   }
 
+  /*
   //This functions iterates over having-filter-query and having-filter-query-map  nad build corresponding comparison tree
-  public static HavingClauseComparisonTree buildHavingClauseComparisonTree(HavingFilterQuery havingFilterQuery,
+  public static HavingClauseComparisonTree buildHavingClauseComparisonTree(Expression havingFilterQuery,
       HavingFilterQueryMap havingFilterQueryMap) {
     if (havingFilterQuery.getNestedFilterQueryIdsSize() == 0) {
       return new HavingClauseComparisonTree(null, buildComparisonFunction(havingFilterQuery), null);
@@ -56,26 +55,48 @@ public class HavingClauseComparisonTree {
       }
       return new HavingClauseComparisonTree(havingFilterQuery.getOperator(), null, subComparisonTree);
     }
+  }*/
+
+  //This functions iterates over having-filter-query and having-filter-query-map  nad build corresponding comparison tree
+  public static HavingClauseComparisonTree buildHavingClauseComparisonTree(Expression havingFilterQuery) {
+    if (havingFilterQuery.getFunctionCall().getOperands().size() == 2 && havingFilterQuery.getFunctionCall()
+        .getOperands().get(1).isSetLiteral()) {
+      return new HavingClauseComparisonTree(null, buildComparisonFunction(havingFilterQuery), null);
+    } else {
+      List<HavingClauseComparisonTree> subComparisonTree = new ArrayList<HavingClauseComparisonTree>();
+      //havingFilterQuery.getFunctionCall().getOperands()
+      for (Expression expression : havingFilterQuery.getFunctionCall().getOperands()) {
+        subComparisonTree.add(buildHavingClauseComparisonTree(expression));
+      }
+      return new HavingClauseComparisonTree(FilterOperator
+          .valueOf(havingFilterQuery.getFunctionCall().getOperator()), null,
+          subComparisonTree);
+    }
   }
 
-  private static ComparisonFunction buildComparisonFunction(HavingFilterQuery havingFilterQuery) {
-    FilterOperator operator = havingFilterQuery.getOperator();
+  private static ComparisonFunction buildComparisonFunction(Expression havingFilterQuery) {
+    FilterOperator operator = FilterOperator.valueOf(havingFilterQuery.getFunctionCall().getOperator());
     ComparisonFunction comparisonFunction = null;
     if (operator == FilterOperator.EQUALITY) {
       comparisonFunction =
-          new EqualComparison(havingFilterQuery.getValue().get(0), havingFilterQuery.getAggregationInfo());
+          new EqualComparison(havingFilterQuery.getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+              havingFilterQuery.getFunctionCall().getOperands().get(0).getFunctionCall());
     } else if (operator == FilterOperator.NOT) {
       comparisonFunction =
-          new NotEqualComparison(havingFilterQuery.getValue().get(0), havingFilterQuery.getAggregationInfo());
+          new NotEqualComparison(havingFilterQuery.getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+              havingFilterQuery.getFunctionCall().getOperands().get(0).getFunctionCall());
     } else if (operator == FilterOperator.RANGE) {
-      String value = havingFilterQuery.getValue().get(0);
-      comparisonFunction = havingRangeStringToComparisonFunction(value, havingFilterQuery.getAggregationInfo());
+      comparisonFunction = havingRangeStringToComparisonFunction(
+          havingFilterQuery.getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+          havingFilterQuery.getFunctionCall().getOperands().get(0).getFunctionCall());
     } else if (operator == FilterOperator.NOT_IN) {
       comparisonFunction =
-          new InAndNotInComparison(havingFilterQuery.getValue().get(0), true, havingFilterQuery.getAggregationInfo());
+          new InAndNotInComparison(havingFilterQuery.getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+              true, havingFilterQuery.getFunctionCall().getOperands().get(0).getFunctionCall());
     } else if (operator == FilterOperator.IN) {
       comparisonFunction =
-          new InAndNotInComparison(havingFilterQuery.getValue().get(0), false, havingFilterQuery.getAggregationInfo());
+          new InAndNotInComparison(havingFilterQuery.getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+              false, havingFilterQuery.getFunctionCall().getOperands().get(0).getFunctionCall());
     } else {
       throw new IllegalStateException("The " + operator.toString() + " operator is not supported for HAVING clause");
     }
@@ -83,7 +104,7 @@ public class HavingClauseComparisonTree {
   }
 
   private static ComparisonFunction havingRangeStringToComparisonFunction(String rangeString,
-      AggregationInfo aggregationInfo) {
+      Function aggregationInfo) {
     ComparisonFunction comparisonFunction = null;
     if (rangeString.matches("\\(\\*\\t\\t[-]?[0-9].*\\)")) {
       String[] tokens = rangeString.split("\\t|\\)");
@@ -124,12 +145,8 @@ public class HavingClauseComparisonTree {
             "All the columns in the HAVING clause expect to be in the input;" + _comparisonFunction
                 .getFunctionExpression() + " is missing");
       }
-      if (_comparisonFunction
-          .isComparisonValid(singleGroupAggResults.get(_comparisonFunction.getFunctionExpression()).toString())) {
-        return true;
-      } else {
-        return false;
-      }
+      return _comparisonFunction
+          .isComparisonValid(singleGroupAggResults.get(_comparisonFunction.getFunctionExpression()).toString());
     } else {
       if (_filterOperator.equals(FilterOperator.AND)) {
         for (int i = 0; i < _subComparisonTree.size(); i++) {

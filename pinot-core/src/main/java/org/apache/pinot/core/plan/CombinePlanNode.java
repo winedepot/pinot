@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.common.Operator;
 import org.apache.pinot.core.operator.CombineGroupByOperator;
 import org.apache.pinot.core.operator.CombineOperator;
@@ -133,7 +134,7 @@ public class CombinePlanNode implements PlanNode {
     }
 
     // TODO: use the same combine operator for both aggregation and selection query.
-    if (_brokerRequest.isSetAggregationsInfo() && _brokerRequest.getGroupBy() != null) {
+    if (RequestUtils.isAggregationQuery(_brokerRequest) && _brokerRequest.getGroupByList() != null) {
       // Aggregation group-by query
       return new CombineGroupByOperator(operators, _brokerRequest, _executorService, _timeOutMs, _numGroupsLimit);
     } else {

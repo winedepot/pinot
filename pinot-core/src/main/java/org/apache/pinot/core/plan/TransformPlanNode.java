@@ -21,9 +21,10 @@ package org.apache.pinot.core.plan;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.operator.transform.TransformOperator;
 import org.apache.pinot.core.query.aggregation.function.AggregationFunctionType;
@@ -62,10 +63,10 @@ public class TransformPlanNode implements PlanNode {
    * @param brokerRequest Broker request to process
    */
   private void extractColumnsAndTransforms(@Nonnull BrokerRequest brokerRequest) {
-    if (brokerRequest.isSetAggregationsInfo()) {
-      for (AggregationInfo aggregationInfo : brokerRequest.getAggregationsInfo()) {
-        if (!aggregationInfo.getAggregationType().equalsIgnoreCase(AggregationFunctionType.COUNT.getName())) {
-          String expression = AggregationFunctionUtils.getColumn(aggregationInfo);
+    if (!RequestUtils.isSelectionQuery(brokerRequest)) {
+      for (Expression aggregationInfo : brokerRequest.getSelectList()) {
+        if (!aggregationInfo.getFunctionCall().getOperator().equalsIgnoreCase(AggregationFunctionType.COUNT.getName())) {
+          String expression = AggregationFunctionUtils.getColumn(aggregationInfo.getFunctionCall());
           TransformExpressionTree transformExpressionTree = TransformExpressionTree.compileToExpressionTree(expression);
           transformExpressionTree.getColumns(_projectionColumns);
           _expressionTrees.add(transformExpressionTree);
@@ -73,9 +74,9 @@ public class TransformPlanNode implements PlanNode {
       }
 
       // Process all group-by expressions
-      if (brokerRequest.isSetGroupBy()) {
-        for (String expression : brokerRequest.getGroupBy().getExpressions()) {
-          TransformExpressionTree transformExpressionTree = TransformExpressionTree.compileToExpressionTree(expression);
+      if (brokerRequest.isSetGroupByList()) {
+        for (Expression expression : brokerRequest.getGroupByList()) {
+          TransformExpressionTree transformExpressionTree = TransformExpressionTree.compileToExpressionTree(expression.getIdentifier().getName());
           transformExpressionTree.getColumns(_projectionColumns);
           _expressionTrees.add(transformExpressionTree);
         }

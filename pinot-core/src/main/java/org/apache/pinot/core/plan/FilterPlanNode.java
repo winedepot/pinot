@@ -111,7 +111,7 @@ public class FilterPlanNode implements PlanNode {
   public void showTree(String prefix) {
     final String treeStructure =
         prefix + "Filter Plan Node\n" + prefix + "Operator: Filter\n" + prefix + "Argument 0: " + _brokerRequest
-            .getFilterQuery();
+            .getFilterExpression();
     LOGGER.debug(treeStructure);
   }
 }

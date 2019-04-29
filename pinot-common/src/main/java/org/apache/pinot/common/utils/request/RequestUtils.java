@@ -36,6 +36,8 @@ import org.apache.pinot.common.request.transform.TransformExpressionTree;
 
 
 public class RequestUtils {
+  private static String DELIMTER = "\t\t";
+
   private RequestUtils() {
   }
 
@@ -231,7 +233,7 @@ public class RequestUtils {
     if (filterQueryTree.getChildren() == null || filterQueryTree.getChildren().isEmpty()) {
       // Leaf node
       node.setIdentifier(new Identifier(filterQueryTree.getColumn()));
-      node.setLiteral(new Literal(StringUtils.join(filterQueryTree.getValue(), "\t\t")));
+      node.setLiteral(new Literal(StringUtils.join(filterQueryTree.getValue(), DELIMTER)));
     } else {
       // Non-leaf node
       for (FilterQueryTree treeNode : filterQueryTree.getChildren()) {
@@ -264,7 +266,7 @@ public class RequestUtils {
       func.setFunctionCall(havingQueryTree.getFunction());
       operands.add(func);
       final Expression right = new Expression(ExpressionType.LITERAL);
-      right.setLiteral(new Literal(StringUtils.join(havingQueryTree.getValue(), ",")));
+      right.setLiteral(new Literal(StringUtils.join(havingQueryTree.getValue(), DELIMTER)));
       operands.add(right);
     } else {
       // Non-leaf node
@@ -292,7 +294,9 @@ public class RequestUtils {
 
   public static boolean isSelectionQuery(BrokerRequest brokerRequest) {
     final List<Expression> selectList = brokerRequest.getSelectList();
-
+    if (selectList == null) {
+      return false;
+    }
     for (Expression select : selectList) {
       if (select.getFunctionCall() != null) {
         return false;
@@ -306,9 +310,12 @@ public class RequestUtils {
   }
 
   public static List<Function> extractFunctions(List<Expression> selectList) {
-    List<Function> functions = new ArrayList<>();
+    List<Function> functions = null;
     for (Expression expr : selectList) {
       if (expr.isSetFunctionCall()) {
+        if (functions == null) {
+          functions = new ArrayList<>();
+        }
         functions.add(expr.getFunctionCall());
       }
     }
@@ -324,22 +331,41 @@ public class RequestUtils {
   }
 
   private static FilterQueryTree buildFilterQuery(Expression filterExpression) {
-    List<Expression> children = filterExpression.getFunctionCall().getOperands();
+    if (filterExpression == null) {
+      return null;
+    }
     List<FilterQueryTree> c = null;
-    if (null != children && !children.isEmpty()) {
-      c = new ArrayList<>();
-      for (final Expression i : children) {
-        final FilterQueryTree t = buildFilterQuery(i);
-        c.add(t);
+    if (filterExpression.getFunctionCall() != null) {
+      List<Expression> children = filterExpression.getFunctionCall().getOperands();
+      if (null != children && !children.isEmpty()) {
+        c = new ArrayList<>();
+        for (final Expression i : children) {
+          final FilterQueryTree t = buildFilterQuery(i);
+          c.add(t);
+        }
       }
     }
-    return new FilterQueryTree(filterExpression.getIdentifier().getName(),
-        Arrays.asList(StringUtils.split(filterExpression.getLiteral().getValue(), "\t\t")),
-        FilterOperator.valueOf(filterExpression.getFunctionCall().getOperator()), c);
+    String column = null;
+    if (filterExpression.getIdentifier() != null) {
+      column = filterExpression.getIdentifier().getName();
+    }
+    FilterOperator operator = null;
+    if (filterExpression.getFunctionCall() != null) {
+      operator = FilterOperator.valueOf(filterExpression.getFunctionCall().getOperator());
+    }
+    List<String> value = null;
+    if (filterExpression.getLiteral() != null) {
+      //value = Arrays.asList(StringUtils.split(filterExpression.getLiteral().getValue(), "\t\t"));
+      value = Arrays.asList(filterExpression.getLiteral().getValue());
+    }
+    return new FilterQueryTree(column, value, operator, c);
   }
 
   public static boolean isAggregationQuery(BrokerRequest brokerRequest) {
     final List<Expression> selectList = brokerRequest.getSelectList();
+    if (selectList == null) {
+      return false;
+    }
     for (Expression select : selectList) {
       if (select.getFunctionCall() != null) {
         return true;
@@ -350,7 +376,7 @@ public class RequestUtils {
 
   public static List<String> extractGroupByExpression(List<Expression> groupBys) {
     List<String> groupbyExpressions = new ArrayList<>();
-    for(Expression groupby: groupBys) {
+    for (Expression groupby : groupBys) {
       groupbyExpressions.add(groupby.getIdentifier().getName());
     }
     return groupbyExpressions;

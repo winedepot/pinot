@@ -18,7 +18,7 @@
  */
 package org.apache.pinot.core.query.reduce;
 
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Function;
 import org.slf4j.LoggerFactory;
 
 
@@ -26,7 +26,7 @@ public class LessEqualComparison extends ComparisonFunction {
   private static final org.slf4j.Logger LOGGER = LoggerFactory.getLogger(LessEqualComparison.class);
   private double _rightValue;
 
-  public LessEqualComparison(String rightValue, AggregationInfo aggregationInfo) {
+  public LessEqualComparison(String rightValue, Function aggregationInfo) {
     super(aggregationInfo);
     try {
       this._rightValue = Double.parseDouble(rightValue);
@@ -39,11 +39,7 @@ public class LessEqualComparison extends ComparisonFunction {
   public boolean isComparisonValid(String aggResult) {
     try {
       double leftValue = Double.parseDouble(aggResult);
-      if (leftValue <= _rightValue) {
-        return true;
-      } else {
-        return false;
-      }
+      return leftValue <= _rightValue;
     } catch (Exception e) {
       LOGGER.info("Exception in applying HAVING clause LESS EQUAL predicate", e);
       return false;

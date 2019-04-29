@@ -35,8 +35,7 @@ import java.util.PriorityQueue;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.response.ServerInstance;
 import org.apache.pinot.common.response.broker.SelectionResults;
 import org.apache.pinot.common.utils.DataSchema;
@@ -66,14 +65,14 @@ import org.apache.pinot.core.indexsegment.IndexSegment;
  * </ul>
  */
 public class SelectionOperatorUtils {
-  private SelectionOperatorUtils() {
-  }
-
   private static final String INT_PATTERN = "##########";
   private static final String LONG_PATTERN = "####################";
   private static final String FLOAT_PATTERN = "#########0.0####";
   private static final String DOUBLE_PATTERN = "###################0.0#########";
   private static final DecimalFormatSymbols DECIMAL_FORMAT_SYMBOLS = DecimalFormatSymbols.getInstance(Locale.US);
+
+  private SelectionOperatorUtils() {
+  }
 
   /**
    * Expand <code>'SELECT *'</code> to select all columns with {@link IndexSegment}, order all columns alphabatically.
@@ -104,6 +103,7 @@ public class SelectionOperatorUtils {
    * @param indexSegment index segment.
    * @return all related columns.
    */
+  /*
   @Nonnull
   public static Set<String> extractSelectionRelatedColumns(@Nonnull Selection selection,
       @Nonnull IndexSegment indexSegment) {
@@ -111,6 +111,27 @@ public class SelectionOperatorUtils {
     if (selection.getSelectionSortSequence() != null) {
       for (SelectionSort selectionSort : selection.getSelectionSortSequence()) {
         selectionColumns.add(selectionSort.getColumn());
+      }
+    }
+    return selectionColumns;
+  }
+   */
+
+  /**
+   * Extract all related columns for a selection query with {@link IndexSegment}. (Inner segment)
+   *
+   * @param selection selection query.
+   * @param indexSegment index segment.
+   * @return all related columns.
+   */
+  @Nonnull
+  public static Set<String> extractSelectionRelatedColumns(@Nonnull List<Expression> selection,
+      List<Expression> orderBys, @Nonnull IndexSegment indexSegment) {
+    Set<String> selectionColumns =
+        new HashSet<>(getSelectionColumns(SelectionOperatorUtils.getSelectionColumns(selection), indexSegment));
+    if (orderBys != null) {
+      for (Expression orderBy : orderBys) {
+        selectionColumns.add(orderBy.getIdentifier().getName());
       }
     }
     return selectionColumns;
@@ -125,6 +146,7 @@ public class SelectionOperatorUtils {
    * @param indexSegment index segment.
    * @return data schema.
    */
+  /*
   @Nonnull
   public static DataSchema extractDataSchema(@Nullable List<SelectionSort> sortSequence,
       @Nonnull List<String> selectionColumns, @Nonnull IndexSegment indexSegment) {
@@ -134,6 +156,51 @@ public class SelectionOperatorUtils {
     if (sortSequence != null) {
       for (SelectionSort selectionSort : sortSequence) {
         String column = selectionSort.getColumn();
+        columnList.add(column);
+        columnSet.add(column);
+      }
+    }
+
+    for (String column : selectionColumns) {
+      if (!columnSet.contains(column)) {
+        columnList.add(column);
+        columnSet.add(column);
+      }
+    }
+
+    int numColumns = columnList.size();
+    String[] columnNames = new String[numColumns];
+    DataSchema.ColumnDataType[] columnDataTypes = new DataSchema.ColumnDataType[numColumns];
+    for (int i = 0; i < numColumns; i++) {
+      String columnName = columnList.get(i);
+      columnNames[i] = columnName;
+      DataSourceMetadata columnMetadata = indexSegment.getDataSource(columnName).getDataSourceMetadata();
+      columnDataTypes[i] =
+          DataSchema.ColumnDataType.fromDataType(columnMetadata.getDataType(), columnMetadata.isSingleValue());
+    }
+
+    return new DataSchema(columnNames, columnDataTypes);
+  }
+   */
+
+  /**
+   * Extract the {@link DataSchema} from sort sequence, selection columns and {@link IndexSegment}. (Inner segment)
+   * <p>Inside data schema, we just store each column once (de-duplicated).
+   *
+   * @param orderBys sort sequence.
+   * @param selectionColumns selection columns.
+   * @param indexSegment index segment.
+   * @return data schema.
+   */
+  @Nonnull
+  public static DataSchema extractDataSchema(@Nullable List<Expression> orderBys,
+      @Nonnull List<String> selectionColumns, @Nonnull IndexSegment indexSegment) {
+    List<String> columnList = new ArrayList<>();
+    Set<String> columnSet = new HashSet<>();
+
+    if (orderBys != null) {
+      for (Expression orderBy : orderBys) {
+        String column = orderBy.getIdentifier().getName();
         columnList.add(column);
         columnSet.add(column);
       }
@@ -693,5 +760,13 @@ public class SelectionOperatorUtils {
       queue.poll();
       queue.offer(value);
     }
+  }
+
+  public static List<String> getSelectionColumns(List<Expression> selectList) {
+    List<String> selectionColumns = new ArrayList<>();
+    for (Expression select : selectList) {
+      selectionColumns.add(select.getIdentifier().getName());
+    }
+    return selectionColumns;
   }
 }

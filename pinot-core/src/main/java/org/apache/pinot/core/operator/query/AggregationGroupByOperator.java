@@ -18,8 +18,9 @@
  */
 package org.apache.pinot.core.operator.query;
 
+import java.util.List;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.core.operator.BaseOperator;
 import org.apache.pinot.core.operator.ExecutionStatistics;
 import org.apache.pinot.core.operator.blocks.IntermediateResultsBlock;
@@ -39,7 +40,7 @@ public class AggregationGroupByOperator extends BaseOperator<IntermediateResults
   private static final String OPERATOR_NAME = "AggregationGroupByOperator";
 
   private final AggregationFunctionContext[] _functionContexts;
-  private final GroupBy _groupBy;
+  private final List<Expression> _groupBy;
   private final int _maxInitialResultHolderCapacity;
   private final int _numGroupsLimit;
   private final TransformOperator _transformOperator;
@@ -48,7 +49,7 @@ public class AggregationGroupByOperator extends BaseOperator<IntermediateResults
 
   private ExecutionStatistics _executionStatistics;
 
-  public AggregationGroupByOperator(@Nonnull AggregationFunctionContext[] functionContexts, @Nonnull GroupBy groupBy,
+  public AggregationGroupByOperator(@Nonnull AggregationFunctionContext[] functionContexts, @Nonnull List<Expression> groupBy,
       int maxInitialResultHolderCapacity, int numGroupsLimit, @Nonnull TransformOperator transformOperator,
       long numTotalRawDocs, boolean useStarTree) {
     _functionContexts = functionContexts;

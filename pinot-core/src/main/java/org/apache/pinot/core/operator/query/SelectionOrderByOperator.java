@@ -19,9 +19,9 @@
 package org.apache.pinot.core.operator.query;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.utils.DataSchema;
 import org.apache.pinot.core.common.Block;
 import org.apache.pinot.core.indexsegment.IndexSegment;
@@ -32,6 +32,7 @@ import org.apache.pinot.core.operator.blocks.DocIdSetBlock;
 import org.apache.pinot.core.operator.blocks.IntermediateResultsBlock;
 import org.apache.pinot.core.operator.blocks.ProjectionBlock;
 import org.apache.pinot.core.query.selection.SelectionOperatorService;
+import org.apache.pinot.core.query.selection.SelectionOperatorUtils;
 
 
 /**
@@ -45,37 +46,40 @@ public class SelectionOrderByOperator extends BaseOperator<IntermediateResultsBl
 
   private final IndexSegment _indexSegment;
   private final ProjectionOperator _projectionOperator;
-  private final Selection _selection;
+  private final List<Expression> _selection;
+  private final List<Expression> _orderBys;
+  private final int _limit;
+  private final int _offset;
   private final SelectionOperatorService _selectionOperatorService;
   private final DataSchema _dataSchema;
   private final Block[] _blocks;
   private final Set<String> _selectionColumns = new HashSet<>();
   private ExecutionStatistics _executionStatistics;
 
-  public SelectionOrderByOperator(IndexSegment indexSegment, Selection selection,
-      ProjectionOperator projectionOperator) {
+  public SelectionOrderByOperator(IndexSegment indexSegment, List<Expression> selection, List<Expression> orderBys,
+      int limit, int offset, ProjectionOperator projectionOperator) {
     _indexSegment = indexSegment;
     _selection = selection;
     _projectionOperator = projectionOperator;
-
+    _orderBys = orderBys;
+    _limit = limit;
+    _offset = offset;
     initColumnarDataSourcePlanNodeMap(indexSegment);
-    _selectionOperatorService = new SelectionOperatorService(_selection, indexSegment);
+    _selectionOperatorService = new SelectionOperatorService(_selection, _orderBys, limit, offset, indexSegment);
     _dataSchema = _selectionOperatorService.getDataSchema();
     _blocks = new Block[_selectionColumns.size()];
   }
 
   private void initColumnarDataSourcePlanNodeMap(IndexSegment indexSegment) {
-    _selectionColumns.addAll(_selection.getSelectionColumns());
+    _selectionColumns.addAll(SelectionOperatorUtils.getSelectionColumns(_selection));
     if ((_selectionColumns.size() == 1) && ((_selectionColumns.toArray(new String[0]))[0].equals("*"))) {
       _selectionColumns.clear();
       for (String columnName : indexSegment.getPhysicalColumnNames()) {
         _selectionColumns.add(columnName);
       }
     }
-    if (_selection.getSelectionSortSequence() != null) {
-      for (SelectionSort selectionSort : _selection.getSelectionSortSequence()) {
-        _selectionColumns.add(selectionSort.getColumn());
-      }
+    for (Expression orderBy : _orderBys) {
+      _selectionColumns.add(orderBy.getIdentifier().getName());
     }
   }
 

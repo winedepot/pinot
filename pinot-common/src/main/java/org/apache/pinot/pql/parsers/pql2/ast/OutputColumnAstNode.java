@@ -41,10 +41,10 @@ public class OutputColumnAstNode extends BaseAstNode {
         funcExpression.setFunctionCall(node.buildAggregationInfo());
         brokerRequest.addToSelectList(funcExpression);
       } else if (astNode instanceof IdentifierAstNode) {
-        final List<Expression> selectList = brokerRequest.getSelectList();
-        if (selectList == null) {
+        if (brokerRequest.getSelectList() == null) {
           brokerRequest.setSelectList(new ArrayList<>());
         }
+        final List<Expression> selectList = brokerRequest.getSelectList();
         IdentifierAstNode node = (IdentifierAstNode) astNode;
         Expression expression = new Expression(ExpressionType.IDENTIFIER);
         expression.setIdentifier(new Identifier(node.getName()));

@@ -21,7 +21,7 @@ package org.apache.pinot.core.operator.query;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.utils.DataSchema;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.operator.BaseOperator;
@@ -41,9 +41,9 @@ public class EmptySelectionOperator extends BaseOperator<IntermediateResultsBloc
   private final DataSchema _dataSchema;
   private final ExecutionStatistics _executionStatistics;
 
-  public EmptySelectionOperator(IndexSegment indexSegment, Selection selection) {
+  public EmptySelectionOperator(IndexSegment indexSegment, List<Expression> selection) {
     List<String> selectionColumns =
-        SelectionOperatorUtils.getSelectionColumns(selection.getSelectionColumns(), indexSegment);
+        SelectionOperatorUtils.getSelectionColumns(SelectionOperatorUtils.getSelectionColumns(selection), indexSegment);
     _dataSchema = SelectionOperatorUtils.extractDataSchema(null, selectionColumns, indexSegment);
     _executionStatistics = new ExecutionStatistics(0L, 0L, 0L, indexSegment.getSegmentMetadata().getTotalRawDocs());
   }

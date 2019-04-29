@@ -18,7 +18,7 @@
  */
 package org.apache.pinot.core.query.reduce;
 
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.core.query.aggregation.function.AggregationFunctionUtils;
 
 
@@ -26,7 +26,7 @@ import org.apache.pinot.core.query.aggregation.function.AggregationFunctionUtils
 public abstract class ComparisonFunction {
   private final String _functionExpression;
 
-  protected ComparisonFunction(AggregationInfo aggregationInfo) {
+  protected ComparisonFunction(Function aggregationInfo) {
     _functionExpression =
         AggregationFunctionUtils.getAggregationFunctionContext(aggregationInfo).getAggregationColumnName();
   }

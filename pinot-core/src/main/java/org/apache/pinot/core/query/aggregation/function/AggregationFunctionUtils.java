@@ -24,7 +24,8 @@ import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.segment.SegmentMetadata;
 import org.apache.pinot.core.plan.AggregationFunctionInitializer;
 import org.apache.pinot.core.query.aggregation.AggregationFunctionContext;
@@ -35,46 +36,57 @@ import org.apache.pinot.core.startree.v2.AggregationFunctionColumnPair;
  * The <code>AggregationFunctionUtils</code> class provides utility methods for aggregation function.
  */
 public class AggregationFunctionUtils {
+  public static final String COLUMN_KEY = "column";
+
   private AggregationFunctionUtils() {
   }
 
-  public static final String COLUMN_KEY = "column";
-
   /**
-   * Extracts the aggregation column (could be column name or UDF expression) from the {@link AggregationInfo}.
+   * Extracts the aggregation column (could be column name or UDF expression) from the {@link org.apache.pinot.common.request.Function}.
    */
   @Nonnull
-  public static String getColumn(@Nonnull AggregationInfo aggregationInfo) {
-    return aggregationInfo.getAggregationParams().get(COLUMN_KEY);
+  public static String getColumn(@Nonnull Function aggregationInfo) {
+    return aggregationInfo.getOperands().get(0).getIdentifier().getName();
   }
 
   /**
-   * Creates an {@link AggregationFunctionColumnPair} from the {@link AggregationInfo}.
+   * Creates an {@link AggregationFunctionColumnPair} from the {@link Function}.
    */
   @Nonnull
-  public static AggregationFunctionColumnPair getFunctionColumnPair(@Nonnull AggregationInfo aggregationInfo) {
+  public static AggregationFunctionColumnPair getFunctionColumnPair(@Nonnull Function aggregationInfo) {
     AggregationFunctionType functionType =
-        AggregationFunctionType.getAggregationFunctionType(aggregationInfo.getAggregationType());
+        AggregationFunctionType.getAggregationFunctionType(aggregationInfo.getOperator());
     return new AggregationFunctionColumnPair(functionType, getColumn(aggregationInfo));
   }
 
   /**
-   * Creates an {@link AggregationFunctionContext} from the {@link AggregationInfo}.
+   * Creates an {@link AggregationFunctionContext} from the {@link Function}.
    */
   @Nonnull
-  public static AggregationFunctionContext getAggregationFunctionContext(@Nonnull AggregationInfo aggregationInfo) {
-    String functionName = aggregationInfo.getAggregationType();
+  public static AggregationFunctionContext getAggregationFunctionContext(@Nonnull Function aggregationInfo) {
+    String functionName = aggregationInfo.getOperator();
     AggregationFunction aggregationFunction = AggregationFunctionFactory.getAggregationFunction(functionName);
     return new AggregationFunctionContext(aggregationFunction, AggregationFunctionUtils.getColumn(aggregationInfo));
   }
+  /**
+   * Creates an {@link AggregationFunctionContext} from the {@link Function}.
+   */
+  @Nonnull
+  public static AggregationFunctionContext getAggregationFunctionContext(@Nonnull Expression aggregationInfo) {
+    String functionName = aggregationInfo.getFunctionCall().getOperator();
+    AggregationFunction aggregationFunction = AggregationFunctionFactory.getAggregationFunction(functionName);
+    return new AggregationFunctionContext(aggregationFunction, AggregationFunctionUtils.getColumn(aggregationInfo.getFunctionCall()));
+  }
+
+
 
   @Nonnull
-  public static AggregationFunctionContext[] getAggregationFunctionContexts(
-      @Nonnull List<AggregationInfo> aggregationInfos, @Nullable SegmentMetadata segmentMetadata) {
+  public static AggregationFunctionContext[] getAggregationFunctionContexts(@Nonnull List<Function> aggregationInfos,
+      @Nullable SegmentMetadata segmentMetadata) {
     int numAggregationFunctions = aggregationInfos.size();
     AggregationFunctionContext[] aggregationFunctionContexts = new AggregationFunctionContext[numAggregationFunctions];
     for (int i = 0; i < numAggregationFunctions; i++) {
-      AggregationInfo aggregationInfo = aggregationInfos.get(i);
+      Function aggregationInfo = aggregationInfos.get(i);
       aggregationFunctionContexts[i] = getAggregationFunctionContext(aggregationInfo);
     }
     if (segmentMetadata != null) {
@@ -88,22 +100,23 @@ public class AggregationFunctionUtils {
   }
 
   @Nonnull
-  public static AggregationFunction[] getAggregationFunctions(@Nonnull List<AggregationInfo> aggregationInfos) {
+  public static AggregationFunction[] getAggregationFunctions(@Nonnull List<Function> aggregationInfos) {
     int numAggregationFunctions = aggregationInfos.size();
     AggregationFunction[] aggregationFunctions = new AggregationFunction[numAggregationFunctions];
     for (int i = 0; i < numAggregationFunctions; i++) {
       aggregationFunctions[i] =
-          AggregationFunctionFactory.getAggregationFunction(aggregationInfos.get(i).getAggregationType());
+          AggregationFunctionFactory.getAggregationFunction(aggregationInfos.get(i).getOperator());
     }
     return aggregationFunctions;
   }
 
   @Nonnull
-  public static boolean[] getAggregationFunctionsSelectStatus(@Nonnull List<AggregationInfo> aggregationInfos) {
+  public static boolean[] getAggregationFunctionsSelectStatus(@Nonnull List<Function> aggregationInfos) {
     int numAggregationFunctions = aggregationInfos.size();
     boolean[] aggregationFunctionsStatus = new boolean[numAggregationFunctions];
     for (int i = 0; i < numAggregationFunctions; i++) {
-      aggregationFunctionsStatus[i] = aggregationInfos.get(i).isIsInSelectList();
+      aggregationFunctionsStatus[i] = true;
+      //aggregationInfos.get(i).isIsInSelectList();
     }
     return aggregationFunctionsStatus;
   }

@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pinot.common.exception.QueryException;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.response.ProcessingException;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.common.Operator;
 import org.apache.pinot.core.operator.blocks.IntermediateResultsBlock;
 import org.apache.pinot.core.query.aggregation.AggregationFunctionContext;
@@ -62,7 +63,7 @@ public class CombineGroupByOperator extends BaseOperator<IntermediateResultsBloc
 
   public CombineGroupByOperator(List<Operator> operators, BrokerRequest brokerRequest, ExecutorService executorService,
       long timeOutMs, int numGroupsLimit) {
-    Preconditions.checkArgument(brokerRequest.isSetAggregationsInfo() && brokerRequest.isSetGroupBy());
+    Preconditions.checkArgument(RequestUtils.isAggregationQuery(brokerRequest) && brokerRequest.isSetGroupByList());
 
     _operators = operators;
     _brokerRequest = brokerRequest;
@@ -99,7 +100,7 @@ public class CombineGroupByOperator extends BaseOperator<IntermediateResultsBloc
     ConcurrentLinkedQueue<ProcessingException> mergedProcessingExceptions = new ConcurrentLinkedQueue<>();
 
     AggregationFunctionContext[] aggregationFunctionContexts =
-        AggregationFunctionUtils.getAggregationFunctionContexts(_brokerRequest.getAggregationsInfo(), null);
+        AggregationFunctionUtils.getAggregationFunctionContexts(RequestUtils.extractFunctions(_brokerRequest), null);
     int numAggregationFunctions = aggregationFunctionContexts.length;
     AggregationFunction[] aggregationFunctions = new AggregationFunction[numAggregationFunctions];
     for (int i = 0; i < numAggregationFunctions; i++) {
@@ -173,7 +174,7 @@ public class CombineGroupByOperator extends BaseOperator<IntermediateResultsBloc
 
       // Trim the results map.
       AggregationGroupByTrimmingService aggregationGroupByTrimmingService =
-          new AggregationGroupByTrimmingService(aggregationFunctions, (int) _brokerRequest.getGroupBy().getTopN());
+          new AggregationGroupByTrimmingService(aggregationFunctions, _brokerRequest.getLimit());
       List<Map<String, Object>> trimmedResults =
           aggregationGroupByTrimmingService.trimIntermediateResultsMap(resultsMap);
       IntermediateResultsBlock mergedBlock =

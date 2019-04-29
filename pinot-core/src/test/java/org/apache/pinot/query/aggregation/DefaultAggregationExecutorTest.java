@@ -20,6 +20,7 @@ package org.apache.pinot.query.aggregation;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -30,7 +31,10 @@ import org.apache.commons.io.FileUtils;
 import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.MetricFieldSpec;
 import org.apache.pinot.common.data.Schema;
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.segment.ReadMode;
 import org.apache.pinot.core.common.DataSource;
@@ -73,20 +77,17 @@ import org.testng.annotations.Test;
  * Asserts that aggregation results returned by the executor are as expected.
  */
 public class DefaultAggregationExecutorTest {
-  protected static Logger LOGGER = LoggerFactory.getLogger(DefaultAggregationExecutorTest.class);
-  private static File INDEX_DIR = new File(FileUtils.getTempDirectory() + File.separator + "AggregationExecutorTest");
   private static final String SEGMENT_NAME = "TestAggregation";
-
   private static final String METRIC_PREFIX = "metric_";
   private static final String[] AGGREGATION_FUNCTIONS = {"sum", "max", "min"};
-
   private static final int NUM_METRIC_COLUMNS = AGGREGATION_FUNCTIONS.length;
   private static final double MAX_VALUE = Integer.MAX_VALUE;
   private static final int NUM_ROWS = 1000;
-
   public static IndexSegment _indexSegment;
+  protected static Logger LOGGER = LoggerFactory.getLogger(DefaultAggregationExecutorTest.class);
+  private static File INDEX_DIR = new File(FileUtils.getTempDirectory() + File.separator + "AggregationExecutorTest");
   private Random _random;
-  private List<AggregationInfo> _aggregationInfoList;
+  private List<Function> _aggregationInfoList;
   private String[] _columns;
   private double[][] _inputData;
 
@@ -111,13 +112,11 @@ public class DefaultAggregationExecutorTest {
     _aggregationInfoList = new ArrayList<>();
 
     for (int i = 0; i < _columns.length; i++) {
-      AggregationInfo aggregationInfo = new AggregationInfo();
-      aggregationInfo.setAggregationType(AGGREGATION_FUNCTIONS[i]);
-
-      Map<String, String> params = new HashMap<>();
-      params.put("column", _columns[i]);
-
-      aggregationInfo.setAggregationParams(params);
+      Function aggregationInfo = new Function();
+      aggregationInfo.setOperator(AGGREGATION_FUNCTIONS[i]);
+      Expression column = new Expression(ExpressionType.IDENTIFIER);
+      column.setIdentifier(new Identifier(_columns[i]));
+      aggregationInfo.setOperands(Arrays.asList(column));
       _aggregationInfoList.add(aggregationInfo);
     }
   }
@@ -145,7 +144,7 @@ public class DefaultAggregationExecutorTest {
     AggregationFunctionInitializer aggFuncInitializer =
         new AggregationFunctionInitializer(_indexSegment.getSegmentMetadata());
     for (int i = 0; i < numAggFuncs; i++) {
-      AggregationInfo aggregationInfo = _aggregationInfoList.get(i);
+      Function aggregationInfo = _aggregationInfoList.get(i);
       aggrFuncContextArray[i] = AggregationFunctionUtils.getAggregationFunctionContext(aggregationInfo);
       aggrFuncContextArray[i].getAggregationFunction().accept(aggFuncInitializer);
     }

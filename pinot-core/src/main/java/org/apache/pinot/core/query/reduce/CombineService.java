@@ -25,9 +25,10 @@ import java.util.PriorityQueue;
 import javax.annotation.Nonnull;
 import org.apache.pinot.common.exception.QueryException;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.response.ProcessingException;
 import org.apache.pinot.common.utils.DataSchema;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.operator.blocks.IntermediateResultsBlock;
 import org.apache.pinot.core.query.aggregation.AggregationFunctionContext;
 import org.apache.pinot.core.query.selection.SelectionOperatorUtils;
@@ -40,10 +41,10 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({"ConstantConditions", "unchecked"})
 public class CombineService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(CombineService.class);
+
   private CombineService() {
   }
-
-  private static final Logger LOGGER = LoggerFactory.getLogger(CombineService.class);
 
   public static void mergeTwoBlocks(@Nonnull BrokerRequest brokerRequest, @Nonnull IntermediateResultsBlock mergedBlock,
       @Nonnull IntermediateResultsBlock blockToMerge) {
@@ -57,10 +58,10 @@ public class CombineService {
     }
 
     // Combine result.
-    if (brokerRequest.isSetAggregationsInfo()) {
+    if (RequestUtils.isAggregationQuery(brokerRequest)) {
       // Combine aggregation result.
 
-      if (!brokerRequest.isSetGroupBy()) {
+      if (!brokerRequest.isSetGroupByList()) {
         // Combine aggregation only result.
 
         // Might be null if caught exception during query execution.
@@ -109,9 +110,9 @@ public class CombineService {
       } else {
         // Some data in merged block.
 
-        Selection selection = brokerRequest.getSelections();
-        boolean isSelectionOrderBy = selection.isSetSelectionSortSequence();
-        int selectionSize = selection.getSize();
+        List<Expression> selection = brokerRequest.getSelectList();
+        boolean isSelectionOrderBy = brokerRequest.isSetGroupByList();
+        int selectionSize = brokerRequest.getLimit();
 
         // No need to merge if already got enough rows for selection only.
         if (!isSelectionOrderBy && (mergedBlockResultSet.size() == selectionSize)) {
@@ -131,7 +132,7 @@ public class CombineService {
               // Combine selection order-by.
               SelectionOperatorUtils
                   .mergeWithOrdering((PriorityQueue<Serializable[]>) mergedBlockResultSet, blockToMergeResultSet,
-                      selection.getOffset() + selectionSize);
+                      brokerRequest.getOffset() + selectionSize);
             } else {
               // Combine selection only.
               SelectionOperatorUtils.mergeWithoutOrdering(mergedBlockResultSet, blockToMergeResultSet, selectionSize);

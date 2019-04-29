@@ -18,8 +18,9 @@
  */
 package org.apache.pinot.core.plan;
 
+import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.core.common.Operator;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.operator.query.EmptySelectionOperator;
@@ -37,24 +38,30 @@ public class SelectionPlanNode implements PlanNode {
   private static final Logger LOGGER = LoggerFactory.getLogger(SelectionPlanNode.class);
 
   private final IndexSegment _indexSegment;
-  private final Selection _selection;
+  // private final Selection _selection;
+  private final List<Expression> _selection;
+  private final List<Expression> _orderBy;
   private final ProjectionPlanNode _projectionPlanNode;
+  private final int _limit;
+  private final int _offset;
 
   public SelectionPlanNode(IndexSegment indexSegment, BrokerRequest brokerRequest) {
     _indexSegment = indexSegment;
-    _selection = brokerRequest.getSelections();
-
-    if (_selection.getSize() > 0) {
+    _selection = brokerRequest.getSelectList();
+    _orderBy = brokerRequest.getOrderByList();
+    _limit = brokerRequest.getLimit();
+    _offset = brokerRequest.getOffset();
+    if (_selection.size() > 0) {
       int maxDocPerNextCall = DocIdSetPlanNode.MAX_DOC_PER_CALL;
 
       // No ordering required, select minimum number of documents
-      if (!_selection.isSetSelectionSortSequence()) {
-        maxDocPerNextCall = Math.min(_selection.getOffset() + _selection.getSize(), maxDocPerNextCall);
+      if (!brokerRequest.isSetOrderByList()) {
+        maxDocPerNextCall = Math.min(_offset + _limit, maxDocPerNextCall);
       }
 
       DocIdSetPlanNode docIdSetPlanNode = new DocIdSetPlanNode(_indexSegment, brokerRequest, maxDocPerNextCall);
       _projectionPlanNode = new ProjectionPlanNode(_indexSegment,
-          SelectionOperatorUtils.extractSelectionRelatedColumns(_selection, indexSegment), docIdSetPlanNode);
+          SelectionOperatorUtils.extractSelectionRelatedColumns(_selection, _orderBy, indexSegment), docIdSetPlanNode);
     } else {
       _projectionPlanNode = null;
     }
@@ -62,11 +69,12 @@ public class SelectionPlanNode implements PlanNode {
 
   @Override
   public Operator run() {
-    if (_selection.getSize() > 0) {
-      if (_selection.isSetSelectionSortSequence()) {
-        return new SelectionOrderByOperator(_indexSegment, _selection, _projectionPlanNode.run());
+    if (_selection.size() > 0) {
+      if (_orderBy != null) {
+        return new SelectionOrderByOperator(_indexSegment, _selection, _orderBy, _limit, _offset,
+            _projectionPlanNode.run());
       } else {
-        return new SelectionOnlyOperator(_indexSegment, _selection, _projectionPlanNode.run());
+        return new SelectionOnlyOperator(_indexSegment, _selection, _limit, _projectionPlanNode.run());
       }
     } else {
       return new EmptySelectionOperator(_indexSegment, _selection);
@@ -76,8 +84,8 @@ public class SelectionPlanNode implements PlanNode {
   @Override
   public void showTree(String prefix) {
     LOGGER.debug(prefix + "Segment Level Inner-Segment Plan Node:");
-    if (_selection.getSize() > 0) {
-      if (_selection.isSetSelectionSortSequence()) {
+    if (_selection.size() > 0) {
+      if (_orderBy != null) {
         LOGGER.debug(prefix + "Operator: SelectionOrderByOperator");
       } else {
         LOGGER.debug(prefix + "Operator: SelectionOnlyOperator");
@@ -87,7 +95,7 @@ public class SelectionPlanNode implements PlanNode {
     }
     LOGGER.debug(prefix + "Argument 0: IndexSegment - " + _indexSegment.getSegmentName());
     LOGGER.debug(prefix + "Argument 1: Selections - " + _selection);
-    if (_selection.getSize() > 0) {
+    if (_selection.size() > 0) {
       LOGGER.debug(prefix + "Argument 2: Projection -");
       _projectionPlanNode.showTree(prefix + "    ");
     }

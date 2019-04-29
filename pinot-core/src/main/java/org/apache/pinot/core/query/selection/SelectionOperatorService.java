@@ -29,8 +29,7 @@ import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.response.ServerInstance;
 import org.apache.pinot.common.response.broker.SelectionResults;
 import org.apache.pinot.common.utils.DataSchema;
@@ -69,7 +68,8 @@ import org.apache.pinot.core.query.selection.comparator.CompositeDocIdValCompara
  */
 public class SelectionOperatorService {
   private final List<String> _selectionColumns;
-  private final List<SelectionSort> _sortSequence;
+  // private final List<SelectionSort> _sortSequence;
+  private final List<Expression> _sortSequence;
   private final DataSchema _dataSchema;
   private final int _selectionOffset;
   private final int _maxNumRows;
@@ -83,6 +83,7 @@ public class SelectionOperatorService {
    * @param selection selection query.
    * @param indexSegment index segment.
    */
+  /*
   public SelectionOperatorService(@Nonnull Selection selection, @Nonnull IndexSegment indexSegment) {
     _selectionColumns = SelectionOperatorUtils.getSelectionColumns(selection.getSelectionColumns(), indexSegment);
     _sortSequence = getSortSequence(selection.getSelectionSortSequence());
@@ -93,12 +94,15 @@ public class SelectionOperatorService {
     _rows = new PriorityQueue<>(_maxNumRows, getStrictComparator());
   }
 
+   */
+
   /**
    * Constructor for <code>SelectionOperatorService</code> with {@link DataSchema}. (Inter segment)
    *
    * @param selection selection query.
    * @param dataSchema data schema.
    */
+  /*
   public SelectionOperatorService(@Nonnull Selection selection, @Nonnull DataSchema dataSchema) {
     _selectionColumns = SelectionOperatorUtils.getSelectionColumns(selection.getSelectionColumns(), dataSchema);
     _sortSequence = getSortSequence(selection.getSelectionSortSequence());
@@ -109,11 +113,48 @@ public class SelectionOperatorService {
     _rows = new PriorityQueue<>(_maxNumRows, getTypeCompatibleComparator());
   }
 
+   */
+
+  /**
+   * Constructor for <code>SelectionOperatorService</code> with {@link DataSchema}. (Inter segment)
+   *
+   * @param selection selection query.
+   * @param orderBys orderyBy.
+   * @param indexSegment index segment.
+   */
+  public SelectionOperatorService(List<Expression> selection, List<Expression> orderBys, int limit, int offset, IndexSegment indexSegment) {
+    _selectionColumns = SelectionOperatorUtils.getSelectionColumns(SelectionOperatorUtils.getSelectionColumns(selection), indexSegment);
+    _sortSequence = orderBys;
+    _dataSchema = SelectionOperatorUtils.extractDataSchema(_sortSequence, _selectionColumns, indexSegment);
+    // Select rows from offset to offset + size.
+    _selectionOffset = offset;
+    _maxNumRows = _selectionOffset + limit;
+    _rows = new PriorityQueue<>(_maxNumRows, getStrictComparator());
+  }
+
+  /**
+   * Constructor for <code>SelectionOperatorService</code> with {@link DataSchema}. (Inter segment)
+   *
+   * @param selection selection query.
+   * @param orderBys orderyBy.
+   * @param dataSchema data schema.
+   */
+  public SelectionOperatorService(@Nonnull List<Expression> selection,List<Expression> orderBys, int limit, int offset,  @Nonnull DataSchema dataSchema) {
+    _selectionColumns = SelectionOperatorUtils.getSelectionColumns(SelectionOperatorUtils.getSelectionColumns(selection), dataSchema);
+    _sortSequence = orderBys;
+    _dataSchema = dataSchema;
+    // Select rows from offset to offset + size.
+    _selectionOffset = offset;
+    _maxNumRows = _selectionOffset + limit;
+    _rows = new PriorityQueue<>(_maxNumRows, getTypeCompatibleComparator());
+  }
+
   /**
    * Helper method to handle duplicate sort columns.
    *
    * @return de-duplicated list of sort sequences.
    */
+  /*
   @Nonnull
   private List<SelectionSort> getSortSequence(List<SelectionSort> selectionSorts) {
     List<SelectionSort> deDupedSelectionSorts = new ArrayList<>();
@@ -127,6 +168,7 @@ public class SelectionOperatorService {
     }
     return deDupedSelectionSorts;
   }
+   */
 
   /**
    * Helper method to get the strict {@link Comparator} for selection rows. (Inner segment)
@@ -142,42 +184,42 @@ public class SelectionOperatorService {
         int numSortColumns = _sortSequence.size();
         for (int i = 0; i < numSortColumns; i++) {
           int ret = 0;
-          SelectionSort selectionSort = _sortSequence.get(i);
+          Expression selectionSort = _sortSequence.get(i);
           Serializable v1 = o1[i];
           Serializable v2 = o2[i];
 
           // Only compare single-value columns.
           switch (_dataSchema.getColumnDataType(i)) {
             case INT:
-              if (!selectionSort.isIsAsc()) {
+              if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
                 ret = ((Integer) v1).compareTo((Integer) v2);
               } else {
                 ret = ((Integer) v2).compareTo((Integer) v1);
               }
               break;
             case LONG:
-              if (!selectionSort.isIsAsc()) {
+              if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
                 ret = ((Long) v1).compareTo((Long) v2);
               } else {
                 ret = ((Long) v2).compareTo((Long) v1);
               }
               break;
             case FLOAT:
-              if (!selectionSort.isIsAsc()) {
+              if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
                 ret = ((Float) v1).compareTo((Float) v2);
               } else {
                 ret = ((Float) v2).compareTo((Float) v1);
               }
               break;
             case DOUBLE:
-              if (!selectionSort.isIsAsc()) {
+              if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
                 ret = ((Double) v1).compareTo((Double) v2);
               } else {
                 ret = ((Double) v2).compareTo((Double) v1);
               }
               break;
             case STRING:
-              if (!selectionSort.isIsAsc()) {
+              if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
                 ret = ((String) v1).compareTo((String) v2);
               } else {
                 ret = ((String) v2).compareTo((String) v1);
@@ -210,19 +252,19 @@ public class SelectionOperatorService {
         int numSortColumns = _sortSequence.size();
         for (int i = 0; i < numSortColumns; i++) {
           int ret = 0;
-          SelectionSort selectionSort = _sortSequence.get(i);
+          Expression selectionSort = _sortSequence.get(i);
           Serializable v1 = o1[i];
           Serializable v2 = o2[i];
 
           // Only compare single-value columns.
           if (v1 instanceof Number) {
-            if (!selectionSort.isIsAsc()) {
+            if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
               ret = Double.compare(((Number) v1).doubleValue(), ((Number) v2).doubleValue());
             } else {
               ret = Double.compare(((Number) v2).doubleValue(), ((Number) v1).doubleValue());
             }
           } else if (v1 instanceof String) {
-            if (!selectionSort.isIsAsc()) {
+            if ("DESC".equalsIgnoreCase(selectionSort.getLiteral().getValue())) {
               ret = ((String) v1).compareTo((String) v2);
             } else {
               ret = ((String) v2).compareTo((String) v1);

@@ -18,7 +18,7 @@
  */
 package org.apache.pinot.core.query.reduce;
 
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Function;
 import org.slf4j.LoggerFactory;
 
 
@@ -27,8 +27,9 @@ public class InAndNotInComparison extends ComparisonFunction {
   private double[] _values;
   private boolean _isItNotIn;
 
-  public InAndNotInComparison(String values, boolean isItNotIn, AggregationInfo aggregationInfo) {
+  public InAndNotInComparison(String values, boolean isItNotIn, Function aggregationInfo) {
     super(aggregationInfo);
+    this._isItNotIn = isItNotIn;
     String[] splitedValues = values.split("\\t\\t");
     int size = splitedValues.length;
     this._values = new double[size];
@@ -53,17 +54,9 @@ public class InAndNotInComparison extends ComparisonFunction {
         }
       }
       if (!_isItNotIn) {
-        if (i < size) {
-          return true;
-        } else {
-          return false;
-        }
+        return i < size;
       } else {
-        if (i < size) {
-          return false;
-        } else {
-          return true;
-        }
+        return i >= size;
       }
     } catch (Exception e) {
       LOGGER.info("Exception in applying HAVING clause IN/NOT-IN predicate", e);

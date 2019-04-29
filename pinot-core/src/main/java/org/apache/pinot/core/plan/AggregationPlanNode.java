@@ -22,8 +22,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.indexsegment.IndexSegment;
@@ -46,14 +46,14 @@ public class AggregationPlanNode implements PlanNode {
   private static final Logger LOGGER = LoggerFactory.getLogger(AggregationPlanNode.class);
 
   private final IndexSegment _indexSegment;
-  private final List<AggregationInfo> _aggregationInfos;
+  private final List<Function> _aggregationInfos;
   private final AggregationFunctionContext[] _functionContexts;
   private final TransformPlanNode _transformPlanNode;
   private final StarTreeTransformPlanNode _starTreeTransformPlanNode;
 
   public AggregationPlanNode(@Nonnull IndexSegment indexSegment, @Nonnull BrokerRequest brokerRequest) {
     _indexSegment = indexSegment;
-    _aggregationInfos = brokerRequest.getAggregationsInfo();
+    _aggregationInfos = RequestUtils.extractFunctions(brokerRequest);
     _functionContexts =
         AggregationFunctionUtils.getAggregationFunctionContexts(_aggregationInfos, indexSegment.getSegmentMetadata());
 
@@ -61,10 +61,10 @@ public class AggregationPlanNode implements PlanNode {
     if (starTrees != null) {
       if (!StarTreeUtils.isStarTreeDisabled(brokerRequest)) {
         Set<AggregationFunctionColumnPair> aggregationFunctionColumnPairs = new HashSet<>();
-        for (AggregationInfo aggregationInfo : _aggregationInfos) {
+        for (Function aggregationInfo : _aggregationInfos) {
           aggregationFunctionColumnPairs.add(AggregationFunctionUtils.getFunctionColumnPair(aggregationInfo));
         }
-        FilterQueryTree rootFilterNode = RequestUtils.generateFilterQueryTree(brokerRequest);
+        FilterQueryTree rootFilterNode = RequestUtils.generateFilterQueryTree(brokerRequest.getFilterExpression());
         for (StarTreeV2 starTreeV2 : starTrees) {
           if (StarTreeUtils
               .isFitForStarTree(starTreeV2.getMetadata(), aggregationFunctionColumnPairs, null, rootFilterNode)) {

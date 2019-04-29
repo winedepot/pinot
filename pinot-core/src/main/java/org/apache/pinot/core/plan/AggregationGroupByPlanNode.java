@@ -22,9 +22,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.RequestUtils;
@@ -50,9 +50,9 @@ public class AggregationGroupByPlanNode implements PlanNode {
   private final IndexSegment _indexSegment;
   private final int _maxInitialResultHolderCapacity;
   private final int _numGroupsLimit;
-  private final List<AggregationInfo> _aggregationInfos;
+  private final List<Function> _aggregationInfos;
   private final AggregationFunctionContext[] _functionContexts;
-  private final GroupBy _groupBy;
+  private final List<Expression> _groupBy;
   private final TransformPlanNode _transformPlanNode;
   private final StarTreeTransformPlanNode _starTreeTransformPlanNode;
 
@@ -61,21 +61,21 @@ public class AggregationGroupByPlanNode implements PlanNode {
     _indexSegment = indexSegment;
     _maxInitialResultHolderCapacity = maxInitialResultHolderCapacity;
     _numGroupsLimit = numGroupsLimit;
-    _aggregationInfos = brokerRequest.getAggregationsInfo();
+    _aggregationInfos = RequestUtils.extractFunctions(brokerRequest);
     _functionContexts =
         AggregationFunctionUtils.getAggregationFunctionContexts(_aggregationInfos, indexSegment.getSegmentMetadata());
-    _groupBy = brokerRequest.getGroupBy();
+    _groupBy = brokerRequest.getGroupByList();
 
     List<StarTreeV2> starTrees = indexSegment.getStarTrees();
     if (starTrees != null) {
       if (!StarTreeUtils.isStarTreeDisabled(brokerRequest)) {
         Set<AggregationFunctionColumnPair> aggregationFunctionColumnPairs = new HashSet<>();
-        for (AggregationInfo aggregationInfo : _aggregationInfos) {
+        for (Function aggregationInfo : _aggregationInfos) {
           aggregationFunctionColumnPairs.add(AggregationFunctionUtils.getFunctionColumnPair(aggregationInfo));
         }
         Set<TransformExpressionTree> groupByExpressions = new HashSet<>();
-        for (String expression : _groupBy.getExpressions()) {
-          groupByExpressions.add(TransformExpressionTree.compileToExpressionTree(expression));
+        for (Expression expression : _groupBy) {
+          groupByExpressions.add(TransformExpressionTree.compileToExpressionTree(expression.getIdentifier().getName()));
         }
         FilterQueryTree rootFilterNode = RequestUtils.generateFilterQueryTree(brokerRequest);
         for (StarTreeV2 starTreeV2 : starTrees) {

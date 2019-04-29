@@ -32,9 +32,9 @@ import java.util.Set;
 import org.apache.commons.io.FileUtils;
 import org.apache.pinot.common.data.FieldSpec.DataType;
 import org.apache.pinot.common.data.Schema;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.segment.ReadMode;
 import org.apache.pinot.common.utils.request.FilterQueryTree;
@@ -180,18 +180,18 @@ abstract class BaseStarTreeV2Test<R, A> {
     BrokerRequest brokerRequest = COMPILER.compileToBrokerRequest(query);
 
     // Aggregations
-    List<AggregationInfo> aggregationInfos = brokerRequest.getAggregationsInfo();
+    List<Function> aggregationInfos = RequestUtils.extractFunctions(brokerRequest);
     int numAggregations = aggregationInfos.size();
     List<AggregationFunctionColumnPair> functionColumnPairs = new ArrayList<>(numAggregations);
-    for (AggregationInfo aggregationInfo : aggregationInfos) {
+    for (Function aggregationInfo : aggregationInfos) {
       functionColumnPairs.add(AggregationFunctionUtils.getFunctionColumnPair(aggregationInfo));
     }
 
     // Group-by columns
     Set<String> groupByColumnSet = new HashSet<>();
-    GroupBy groupBy = brokerRequest.getGroupBy();
+    List<Expression> groupBy = brokerRequest.getGroupByList();
     if (groupBy != null) {
-      for (String expression : groupBy.getExpressions()) {
+      for (String expression : RequestUtils.extractGroupByExpression(groupBy)) {
         TransformExpressionTree.compileToExpressionTree(expression).getColumns(groupByColumnSet);
       }
     }

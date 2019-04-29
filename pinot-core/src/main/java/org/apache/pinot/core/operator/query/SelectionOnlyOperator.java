@@ -22,7 +22,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.utils.DataSchema;
 import org.apache.pinot.core.common.Block;
 import org.apache.pinot.core.indexsegment.IndexSegment;
@@ -53,12 +53,12 @@ public class SelectionOnlyOperator extends BaseOperator<IntermediateResultsBlock
   private final Collection<Serializable[]> _rowEvents;
   private ExecutionStatistics _executionStatistics;
 
-  public SelectionOnlyOperator(IndexSegment indexSegment, Selection selection, ProjectionOperator projectionOperator) {
+  public SelectionOnlyOperator(IndexSegment indexSegment, List<Expression> selectList, int limit, ProjectionOperator projectionOperator) {
     _indexSegment = indexSegment;
-    _limitDocs = selection.getSize();
+    _limitDocs = limit;
     _projectionOperator = projectionOperator;
     List<String> selectionColumns =
-        SelectionOperatorUtils.getSelectionColumns(selection.getSelectionColumns(), indexSegment);
+        SelectionOperatorUtils.getSelectionColumns(SelectionOperatorUtils.getSelectionColumns(selectList), indexSegment);
     _dataSchema = SelectionOperatorUtils.extractDataSchema(null, selectionColumns, indexSegment);
     _blocks = new Block[selectionColumns.size()];
     _rowEvents = new ArrayList<>();

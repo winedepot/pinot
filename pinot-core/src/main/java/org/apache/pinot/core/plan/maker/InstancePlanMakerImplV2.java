@@ -23,9 +23,10 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.data.manager.SegmentDataManager;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.plan.AggregationGroupByPlanNode;
@@ -50,13 +51,11 @@ import org.slf4j.LoggerFactory;
  * The <code>InstancePlanMakerImplV2</code> class is the default implementation of {@link PlanMaker}.
  */
 public class InstancePlanMakerImplV2 implements PlanMaker {
-  private static final Logger LOGGER = LoggerFactory.getLogger(InstancePlanMakerImplV2.class);
-
   public static final String MAX_INITIAL_RESULT_HOLDER_CAPACITY_KEY = "max.init.group.holder.capacity";
   public static final int DEFAULT_MAX_INITIAL_RESULT_HOLDER_CAPACITY = 10_000;
   public static final String NUM_GROUPS_LIMIT = "num.groups.limit";
   public static final int DEFAULT_NUM_GROUPS_LIMIT = 100_000;
-
+  private static final Logger LOGGER = LoggerFactory.getLogger(InstancePlanMakerImplV2.class);
   private final int _maxInitialResultHolderCapacity;
   // Limit on number of groups, beyond which no new group will be created
   private final int _numGroupsLimit;
@@ -93,23 +92,96 @@ public class InstancePlanMakerImplV2 implements PlanMaker {
         _maxInitialResultHolderCapacity, _numGroupsLimit);
   }
 
+  /**
+   * Helper method to identify if query is fit to be be served purely based on metadata.
+   * Currently count queries without any filters are supported.
+   * The code for supporting max and min is also in place, but disabled
+   * It would have worked only for time columns and offline and non star tree cases.
+   *
+   * @param brokerRequest Broker request
+   * @param indexSegment
+   * @return True if query can be served using metadata, false otherwise.
+   */
+  public static boolean isFitForMetadataBasedPlan(BrokerRequest brokerRequest, IndexSegment indexSegment) {
+    if (brokerRequest.getFilterExpression() != null || brokerRequest.isSetGroupByList()) {
+      return false;
+    }
+
+    List<Function> aggregationsInfo = RequestUtils.extractFunctions(brokerRequest);
+    if (aggregationsInfo == null) {
+      return false;
+    }
+    for (Function aggInfo : aggregationsInfo) {
+      if (!isMetadataBasedAggregationFunction(aggInfo, indexSegment)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isMetadataBasedAggregationFunction(Function aggregationInfo, IndexSegment indexSegment) {
+    return AggregationFunctionType.getAggregationFunctionType(aggregationInfo.getOperator())
+        == AggregationFunctionType.COUNT;
+  }
+
+  /**
+   * Helper method to identify if query is fit to be be served purely based on dictionary.
+   * It can be served through dictionary only for min, max, minmaxrange queries as of now,
+   * and if a dictionary is present for the column
+   * @param brokerRequest Broker request
+   * @param indexSegment
+   * @return True if query can be served using dictionary, false otherwise.
+   */
+  public static boolean isFitForDictionaryBasedPlan(BrokerRequest brokerRequest, IndexSegment indexSegment) {
+    // Skipping dictionary in case of star tree. Results from dictionary won't be correct
+    // because of aggregated values in metrics, and ALL value in dimension
+    if ((brokerRequest.getFilterExpression() != null) || brokerRequest.isSetGroupByList() || indexSegment
+        .getSegmentMetadata().hasStarTree()) {
+      return false;
+    }
+    List<Function> aggregationsInfo = RequestUtils.extractFunctions(brokerRequest);
+    if (aggregationsInfo == null) {
+      return false;
+    }
+    for (Function aggregationInfo : aggregationsInfo) {
+      if (!isDictionaryBasedAggregationFunction(aggregationInfo, indexSegment)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isDictionaryBasedAggregationFunction(Function aggregationInfo, IndexSegment indexSegment) {
+    AggregationFunctionType functionType =
+        AggregationFunctionType.getAggregationFunctionType(aggregationInfo.getOperator());
+    if (functionType
+        .isOfType(AggregationFunctionType.MIN, AggregationFunctionType.MAX, AggregationFunctionType.MINMAXRANGE)) {
+      String expression = AggregationFunctionUtils.getColumn(aggregationInfo);
+      if (TransformExpressionTree.compileToExpressionTree(expression).isColumn()) {
+        Dictionary dictionary = indexSegment.getDataSource(expression).getDictionary();
+        return dictionary != null && dictionary.isSorted();
+      }
+    }
+    return false;
+  }
+
   @Override
   public PlanNode makeInnerSegmentPlan(IndexSegment indexSegment, BrokerRequest brokerRequest) {
-    if (brokerRequest.isSetAggregationsInfo()) {
-      if (brokerRequest.isSetGroupBy()) {
+    if (RequestUtils.isAggregationQuery(brokerRequest)) {
+      if (brokerRequest.isSetGroupByList()) {
         return new AggregationGroupByPlanNode(indexSegment, brokerRequest, _maxInitialResultHolderCapacity,
             _numGroupsLimit);
       } else {
         if (isFitForMetadataBasedPlan(brokerRequest, indexSegment)) {
-          return new MetadataBasedAggregationPlanNode(indexSegment, brokerRequest.getAggregationsInfo());
+          return new MetadataBasedAggregationPlanNode(indexSegment, RequestUtils.extractFunctions(brokerRequest));
         } else if (isFitForDictionaryBasedPlan(brokerRequest, indexSegment)) {
-          return new DictionaryBasedAggregationPlanNode(indexSegment, brokerRequest.getAggregationsInfo());
+          return new DictionaryBasedAggregationPlanNode(indexSegment, RequestUtils.extractFunctions(brokerRequest));
         } else {
           return new AggregationPlanNode(indexSegment, brokerRequest);
         }
       }
     }
-    if (brokerRequest.isSetSelections()) {
+    if (RequestUtils.isSelectionQuery(brokerRequest)) {
       return new SelectionPlanNode(indexSegment, brokerRequest);
     }
     throw new UnsupportedOperationException("The query contains no aggregation or selection.");
@@ -133,80 +205,5 @@ public class InstancePlanMakerImplV2 implements PlanMaker {
         new CombinePlanNode(planNodes, brokerRequest, executorService, timeOutMs, _numGroupsLimit);
 
     return new GlobalPlanImplV0(new InstanceResponsePlanNode(combinePlanNode));
-  }
-
-  /**
-   * Helper method to identify if query is fit to be be served purely based on metadata.
-   * Currently count queries without any filters are supported.
-   * The code for supporting max and min is also in place, but disabled
-   * It would have worked only for time columns and offline and non star tree cases.
-   *
-   * @param brokerRequest Broker request
-   * @param indexSegment
-   * @return True if query can be served using metadata, false otherwise.
-   */
-  public static boolean isFitForMetadataBasedPlan(BrokerRequest brokerRequest, IndexSegment indexSegment) {
-    if (brokerRequest.getFilterQuery() != null || brokerRequest.isSetGroupBy()) {
-      return false;
-    }
-
-    List<AggregationInfo> aggregationsInfo = brokerRequest.getAggregationsInfo();
-    if (aggregationsInfo == null) {
-      return false;
-    }
-    for (AggregationInfo aggInfo : aggregationsInfo) {
-      if (!isMetadataBasedAggregationFunction(aggInfo, indexSegment)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private static boolean isMetadataBasedAggregationFunction(AggregationInfo aggregationInfo,
-      IndexSegment indexSegment) {
-    return AggregationFunctionType.getAggregationFunctionType(aggregationInfo.getAggregationType())
-        == AggregationFunctionType.COUNT;
-  }
-
-  /**
-   * Helper method to identify if query is fit to be be served purely based on dictionary.
-   * It can be served through dictionary only for min, max, minmaxrange queries as of now,
-   * and if a dictionary is present for the column
-   * @param brokerRequest Broker request
-   * @param indexSegment
-   * @return True if query can be served using dictionary, false otherwise.
-   */
-  public static boolean isFitForDictionaryBasedPlan(BrokerRequest brokerRequest, IndexSegment indexSegment) {
-    // Skipping dictionary in case of star tree. Results from dictionary won't be correct
-    // because of aggregated values in metrics, and ALL value in dimension
-    if ((brokerRequest.getFilterQuery() != null) || brokerRequest.isSetGroupBy() || indexSegment.getSegmentMetadata()
-        .hasStarTree()) {
-      return false;
-    }
-    List<AggregationInfo> aggregationsInfo = brokerRequest.getAggregationsInfo();
-    if (aggregationsInfo == null) {
-      return false;
-    }
-    for (AggregationInfo aggregationInfo : aggregationsInfo) {
-      if (!isDictionaryBasedAggregationFunction(aggregationInfo, indexSegment)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private static boolean isDictionaryBasedAggregationFunction(AggregationInfo aggregationInfo,
-      IndexSegment indexSegment) {
-    AggregationFunctionType functionType =
-        AggregationFunctionType.getAggregationFunctionType(aggregationInfo.getAggregationType());
-    if (functionType
-        .isOfType(AggregationFunctionType.MIN, AggregationFunctionType.MAX, AggregationFunctionType.MINMAXRANGE)) {
-      String expression = AggregationFunctionUtils.getColumn(aggregationInfo);
-      if (TransformExpressionTree.compileToExpressionTree(expression).isColumn()) {
-        Dictionary dictionary = indexSegment.getDataSource(expression).getDictionary();
-        return dictionary != null && dictionary.isSorted();
-      }
-    }
-    return false;
   }
 }

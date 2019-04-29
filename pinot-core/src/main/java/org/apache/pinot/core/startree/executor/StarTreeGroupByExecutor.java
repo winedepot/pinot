@@ -18,8 +18,9 @@
  */
 package org.apache.pinot.core.startree.executor;
 
+import java.util.List;
 import javax.annotation.Nonnull;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.core.common.BlockValSet;
 import org.apache.pinot.core.operator.blocks.TransformBlock;
 import org.apache.pinot.core.operator.transform.TransformOperator;
@@ -42,7 +43,7 @@ import org.apache.pinot.core.startree.v2.AggregationFunctionColumnPair;
  */
 public class StarTreeGroupByExecutor extends DefaultGroupByExecutor {
 
-  public StarTreeGroupByExecutor(@Nonnull AggregationFunctionContext[] functionContexts, @Nonnull GroupBy groupBy,
+  public StarTreeGroupByExecutor(@Nonnull AggregationFunctionContext[] functionContexts, @Nonnull List<Expression> groupBy,
       int maxInitialResultHolderCapacity, int numGroupsLimit, @Nonnull TransformOperator transformOperator) {
     super(StarTreeUtils.createStarTreeFunctionContexts(functionContexts), groupBy, maxInitialResultHolderCapacity,
         numGroupsLimit, transformOperator);
