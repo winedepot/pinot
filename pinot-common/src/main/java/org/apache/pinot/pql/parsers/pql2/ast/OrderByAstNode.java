@@ -18,9 +18,13 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.pql.parsers.Pql2CompilationException;
 
 
@@ -30,18 +34,19 @@ import org.apache.pinot.pql.parsers.Pql2CompilationException;
 public class OrderByAstNode extends BaseAstNode {
   @Override
   public void updateBrokerRequest(BrokerRequest brokerRequest) {
-    Selection selections = brokerRequest.getSelections();
-
+    final List<Expression> orderByList = new ArrayList<>();
     for (AstNode astNode : getChildren()) {
       if (astNode instanceof OrderByExpressionAstNode) {
         OrderByExpressionAstNode node = (OrderByExpressionAstNode) astNode;
-        SelectionSort elem = new SelectionSort();
-        elem.setColumn(node.getColumn());
-        elem.setIsAsc("asc".equalsIgnoreCase(node.getOrdering()));
-        selections.addToSelectionSortSequence(elem);
+        Expression expression = new Expression(ExpressionType.IDENTIFIER);
+        expression.setIdentifier(new Identifier(node.getColumn()));
+        // A hack to set ordering: ASC/DESC
+        expression.setLiteral(new Literal(node.getOrdering()));
+        orderByList.add(expression);
       } else {
         throw new Pql2CompilationException("Child node of ORDER BY node is not an expression node");
       }
     }
+    brokerRequest.setOrderByList(orderByList);
   }
 }

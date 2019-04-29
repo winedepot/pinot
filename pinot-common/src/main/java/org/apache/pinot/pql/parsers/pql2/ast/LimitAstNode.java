@@ -18,6 +18,10 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
+import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.utils.request.RequestUtils;
+
+
 /**
  * AST node for LIMIT clauses.
  */
@@ -41,6 +45,12 @@ public class LimitAstNode extends BaseAstNode {
 
   public int getOffset() {
     return _offset;
+  }
+
+  @Override
+  public void updateBrokerRequest(BrokerRequest brokerRequest) {
+    brokerRequest.setLimit(_count);
+    brokerRequest.setOffset(_offset);
   }
 
   @Override

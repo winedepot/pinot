@@ -19,10 +19,12 @@
 package org.apache.pinot.pql.parsers.pql2.ast;
 
 import java.util.List;
-import org.apache.pinot.common.request.AggregationInfo;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.utils.EqualityUtils;
-import org.apache.pinot.pql.parsers.Pql2CompilationException;
 
 
 /**
@@ -50,8 +52,7 @@ public class FunctionCallAstNode extends BaseAstNode {
     }
 
     FunctionCallAstNode functionCallAstNode = (FunctionCallAstNode) obj;
-    if (_name.equals(functionCallAstNode.getName()) && _expression
-        .equals(functionCallAstNode.getExpression())) {
+    if (_name.equals(functionCallAstNode.getName()) && _expression.equals(functionCallAstNode.getExpression())) {
       return true;
     } else {
       return false;
@@ -77,30 +78,31 @@ public class FunctionCallAstNode extends BaseAstNode {
     return _expression;
   }
 
-  public AggregationInfo buildAggregationInfo() {
+  public Function buildAggregationInfo() {
     String expression;
-    AggregationInfo aggregationInfo = new AggregationInfo();
-    aggregationInfo.setAggregationType(_name);
+    Function aggregationInfo = new Function();
+    aggregationInfo.setOperator(_name);
     // COUNT aggregation function always works on '*'
     if (_name.equalsIgnoreCase("count")) {
-      aggregationInfo.putToAggregationParams("column", "*");
+      Expression column = new Expression();
+      column.setType(ExpressionType.IDENTIFIER);
+      column.setIdentifier(new Identifier("*"));
+      aggregationInfo.addToOperands(column);
     } else {
       List<? extends AstNode> children = getChildren();
 //      if (children == null || children.size() != 1) {
 //        throw new Pql2CompilationException("Aggregation function expects exact 1 argument");
 //      }
       for (int i = 0; i < children.size(); i++) {
-
         AstNode child = children.get(i);
         expression = TransformExpressionTree.getStandardExpression(child);
-        if (i == 0) {
-          aggregationInfo.putToAggregationParams("column", "*");
-        }
-        aggregationInfo.putToAggregationParams("param[" + i + "]", expression);
+        Expression column = new Expression(ExpressionType.IDENTIFIER);
+        column.setIdentifier(new Identifier(expression));
+        aggregationInfo.addToOperands(column);
       }
     }
 
-    aggregationInfo.setIsInSelectList(_isInSelectList);
+    // aggregationInfo.setIsInSelectList(_isInSelectList);
 
     return aggregationInfo;
   }

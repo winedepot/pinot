@@ -19,20 +19,19 @@
 package org.apache.pinot.common.utils.request;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.FilterQuery;
-import org.apache.pinot.common.request.FilterQueryMap;
-import org.apache.pinot.common.request.HavingFilterQuery;
-import org.apache.pinot.common.request.HavingFilterQueryMap;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.FilterOperator;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 
 
@@ -45,10 +44,11 @@ public class RequestUtils {
    * @param filterQueryTree
    * @param request
    */
+  /*
   public static void generateFilterFromTree(FilterQueryTree filterQueryTree, BrokerRequest request) {
-    Map<Integer, FilterQuery> filterQueryMap = new HashMap<>();
+    Map<Integer, Expression> filterQueryMap = new HashMap<>();
     MutableInt currentId = new MutableInt(0);
-    FilterQuery root = traverseFilterQueryAndPopulateMap(filterQueryTree, filterQueryMap, currentId);
+    Expression root = traverseFilterQueryAndPopulateMap(filterQueryTree, filterQueryMap, currentId);
     filterQueryMap.put(root.getId(), root);
     request.setFilterQuery(root);
     FilterQueryMap mp = new FilterQueryMap();
@@ -67,8 +67,8 @@ public class RequestUtils {
     request.setHavingFilterSubQueryMap(mp);
   }
 
-  private static FilterQuery traverseFilterQueryAndPopulateMap(FilterQueryTree tree,
-      Map<Integer, FilterQuery> filterQueryMap, MutableInt currentId) {
+  private static Expression traverseFilterQueryAndPopulateMap(FilterQueryTree tree,
+      Map<Integer, Expression> filterQueryMap, MutableInt currentId) {
     int currentNodeId = currentId.intValue();
     currentId.increment();
 
@@ -79,13 +79,16 @@ public class RequestUtils {
         currentId.increment();
 
         f.add(childNodeId);
-        final FilterQuery q = traverseFilterQueryAndPopulateMap(c, filterQueryMap, currentId);
+        final Expression q = traverseFilterQueryAndPopulateMap(c, filterQueryMap, currentId);
         filterQueryMap.put(childNodeId, q);
       }
     }
 
-    FilterQuery query = new FilterQuery();
-    query.setColumn(tree.getColumn());
+    Expression query = new Expression();
+    Literal column = new Literal();
+    column.setValue(tree.getColumn());
+    query.setLiteral(column);
+    query.set query.setColumn(tree.getColumn());
     query.setSubField(tree.getSubField());
     query.setId(currentNodeId);
     query.setNestedFilterQueryIds(f);
@@ -118,12 +121,14 @@ public class RequestUtils {
     havingFilterQuery.setValue(tree.getValue());
     return havingFilterQuery;
   }
-
+*/
   /**
    * Generate FilterQueryTree from Broker Request
    * @param request Broker Request
    * @return
    */
+
+  /*
   public static FilterQueryTree generateFilterQueryTree(BrokerRequest request) {
     FilterQueryTree root = null;
 
@@ -152,6 +157,7 @@ public class RequestUtils {
 
     return new FilterQueryTree(q.getColumn(), q.getValue(), q.getOperator(), c);
   }
+*/
 
   /**
    * Extracts all columns from the given filter query tree.
@@ -190,19 +196,163 @@ public class RequestUtils {
 
   /**
    * Extracts all columns from the given selection, '*' will be ignored.
+   * @param selections, orderBys
    */
-  public static Set<String> extractSelectionColumns(Selection selection) {
+  public static Set<String> extractSelectionColumns(List<Expression> selections, List<Expression> orderBys) {
     Set<String> selectionColumns = new HashSet<>();
-    for (String selectionColumn : selection.getSelectionColumns()) {
-      if (!selectionColumn.equals("*")) {
-        selectionColumns.add(selectionColumn);
+    for (Expression selection : selections) {
+      if (!selection.getIdentifier().getName().equals("*")) {
+        selectionColumns.add(selection.getIdentifier().getName());
       }
     }
-    if (selection.getSelectionSortSequence() != null) {
-      for (SelectionSort selectionSort : selection.getSelectionSortSequence()) {
-        selectionColumns.add(selectionSort.getColumn());
+    if (orderBys != null && !orderBys.isEmpty()) {
+      for (Expression orderBy : orderBys) {
+        selectionColumns.add(orderBy.getIdentifier().getName());
       }
     }
     return selectionColumns;
+  }
+
+  /**
+   * Generates thrift compliant filterQuery and populate it in the broker request
+   * @param filterQueryTree
+   * @param request
+   */
+  public static void generateFilterFromTree(FilterQueryTree filterQueryTree, BrokerRequest request) {
+    Expression root = traverseFilterQueryTree(filterQueryTree);
+    request.setFilterExpression(root);
+  }
+
+  private static Expression traverseFilterQueryTree(FilterQueryTree filterQueryTree) {
+    Expression node = new Expression(ExpressionType.FUNCTION);
+    Function op = new Function();
+    op.setOperator(filterQueryTree.getOperator().toString());
+    List<Expression> operands = new ArrayList<>();
+    if (filterQueryTree.getChildren() == null || filterQueryTree.getChildren().isEmpty()) {
+      // Leaf node
+      node.setIdentifier(new Identifier(filterQueryTree.getColumn()));
+      node.setLiteral(new Literal(StringUtils.join(filterQueryTree.getValue(), "\t\t")));
+    } else {
+      // Non-leaf node
+      for (FilterQueryTree treeNode : filterQueryTree.getChildren()) {
+        operands.add(traverseFilterQueryTree(treeNode));
+      }
+    }
+    op.setOperands(operands);
+    node.setFunctionCall(op);
+    return node;
+  }
+
+  /**
+   * Generates thrift compliant filterQuery and populate it in the broker request
+   * @param havingQueryTree
+   * @param request
+   */
+  public static void generateFilterFromTree(HavingQueryTree havingQueryTree, BrokerRequest request) {
+    Expression root = traverseHavingQueryTree(havingQueryTree);
+    request.setHavingExpression(root);
+  }
+
+  private static Expression traverseHavingQueryTree(HavingQueryTree havingQueryTree) {
+    Expression node = new Expression(ExpressionType.FUNCTION);
+
+    Function op = new Function();
+    op.setOperator(havingQueryTree.getOperator().name());
+    List<Expression> operands = new ArrayList<>();
+    if (havingQueryTree.getChildren() == null || havingQueryTree.getChildren().isEmpty()) {
+      final Expression func = new Expression(ExpressionType.FUNCTION);
+      func.setFunctionCall(havingQueryTree.getFunction());
+      operands.add(func);
+      final Expression right = new Expression(ExpressionType.LITERAL);
+      right.setLiteral(new Literal(StringUtils.join(havingQueryTree.getValue(), ",")));
+      operands.add(right);
+    } else {
+      // Non-leaf node
+      for (HavingQueryTree treeNode : havingQueryTree.getChildren()) {
+        operands.add(traverseHavingQueryTree(treeNode));
+      }
+    }
+    op.setOperands(operands);
+    node.setFunctionCall(op);
+    return node;
+  }
+
+  public static Expression generateFilterQuery(String op, String left, String right) {
+    Expression expr = new Expression(ExpressionType.FUNCTION);
+    Function func = new Function(op);
+    Expression leftExpr = new Expression(ExpressionType.IDENTIFIER);
+    leftExpr.setIdentifier(new Identifier(left));
+    func.addToOperands(leftExpr);
+    Expression rightExpr = new Expression(ExpressionType.LITERAL);
+    rightExpr.setLiteral(new Literal(right));
+    func.addToOperands(rightExpr);
+    expr.setFunctionCall(func);
+    return expr;
+  }
+
+  public static boolean isSelectionQuery(BrokerRequest brokerRequest) {
+    final List<Expression> selectList = brokerRequest.getSelectList();
+
+    for (Expression select : selectList) {
+      if (select.getFunctionCall() != null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public static List<Function> extractFunctions(BrokerRequest brokerRequest) {
+    return extractFunctions(brokerRequest.getSelectList());
+  }
+
+  public static List<Function> extractFunctions(List<Expression> selectList) {
+    List<Function> functions = new ArrayList<>();
+    for (Expression expr : selectList) {
+      if (expr.isSetFunctionCall()) {
+        functions.add(expr.getFunctionCall());
+      }
+    }
+    return functions;
+  }
+
+  public static FilterQueryTree generateFilterQueryTree(BrokerRequest request) {
+    return generateFilterQueryTree(request.getFilterExpression());
+  }
+
+  public static FilterQueryTree generateFilterQueryTree(Expression filterExpression) {
+    return buildFilterQuery(filterExpression);
+  }
+
+  private static FilterQueryTree buildFilterQuery(Expression filterExpression) {
+    List<Expression> children = filterExpression.getFunctionCall().getOperands();
+    List<FilterQueryTree> c = null;
+    if (null != children && !children.isEmpty()) {
+      c = new ArrayList<>();
+      for (final Expression i : children) {
+        final FilterQueryTree t = buildFilterQuery(i);
+        c.add(t);
+      }
+    }
+    return new FilterQueryTree(filterExpression.getIdentifier().getName(),
+        Arrays.asList(StringUtils.split(filterExpression.getLiteral().getValue(), "\t\t")),
+        FilterOperator.valueOf(filterExpression.getFunctionCall().getOperator()), c);
+  }
+
+  public static boolean isAggregationQuery(BrokerRequest brokerRequest) {
+    final List<Expression> selectList = brokerRequest.getSelectList();
+    for (Expression select : selectList) {
+      if (select.getFunctionCall() != null) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static List<String> extractGroupByExpression(List<Expression> groupBys) {
+    List<String> groupbyExpressions = new ArrayList<>();
+    for(Expression groupby: groupBys) {
+      groupbyExpressions.add(groupby.getIdentifier().getName());
+    }
+    return groupbyExpressions;
   }
 }

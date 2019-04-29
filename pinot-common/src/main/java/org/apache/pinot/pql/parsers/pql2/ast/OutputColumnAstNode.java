@@ -18,8 +18,12 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.pql.parsers.Pql2CompilationException;
 
 
@@ -33,16 +37,18 @@ public class OutputColumnAstNode extends BaseAstNode {
       // If the column is a function call, it must be an aggregation function
       if (astNode instanceof FunctionCallAstNode) {
         FunctionCallAstNode node = (FunctionCallAstNode) astNode;
-        brokerRequest.addToAggregationsInfo(node.buildAggregationInfo());
+        Expression funcExpression = new Expression(ExpressionType.FUNCTION);
+        funcExpression.setFunctionCall(node.buildAggregationInfo());
+        brokerRequest.addToSelectList(funcExpression);
       } else if (astNode instanceof IdentifierAstNode) {
-        Selection selection = brokerRequest.getSelections();
-        if (selection == null) {
-          selection = new Selection();
-          brokerRequest.setSelections(selection);
+        final List<Expression> selectList = brokerRequest.getSelectList();
+        if (selectList == null) {
+          brokerRequest.setSelectList(new ArrayList<>());
         }
-
         IdentifierAstNode node = (IdentifierAstNode) astNode;
-        selection.addToSelectionColumns(node.getName());
+        Expression expression = new Expression(ExpressionType.IDENTIFIER);
+        expression.setIdentifier(new Identifier(node.getName()));
+        selectList.add(expression);
       } else {
         throw new Pql2CompilationException("Output column is neither a function nor an identifier");
       }

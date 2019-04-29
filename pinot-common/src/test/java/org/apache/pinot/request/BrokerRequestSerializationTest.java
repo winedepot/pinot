@@ -19,17 +19,17 @@
 package org.apache.pinot.request;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
 import org.apache.pinot.common.request.FilterOperator;
-import org.apache.pinot.common.request.FilterQuery;
-import org.apache.pinot.common.request.FilterQueryMap;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.QuerySource;
 import org.apache.pinot.common.request.QueryType;
-import org.apache.pinot.common.request.Selection;
-import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.thrift.TException;
 import org.apache.thrift.TSerializer;
 import org.apache.thrift.protocol.TCompactProtocol;
@@ -59,6 +59,39 @@ public class BrokerRequestSerializationTest {
     req.setDuration("dummy");
     req.setTimeInterval("dummy");
 
+    //Populate Group-By
+    List<Expression> groupByList = new ArrayList<>();
+    Expression groupBy = new Expression(ExpressionType.IDENTIFIER);
+    groupBy.setIdentifier(new Identifier("dummy1"));
+    groupByList.add(groupBy);
+    groupBy = new Expression(ExpressionType.IDENTIFIER);
+    groupBy.setIdentifier(new Identifier("dummy2"));
+    groupByList.add(groupBy);
+    req.setGroupByList(groupByList);
+
+    //Populate Selections
+    List<Expression> selectList = new ArrayList<>();
+    Expression select = new Expression(ExpressionType.IDENTIFIER);
+    select.setIdentifier(new Identifier("dummy1"));
+    selectList.add(select);
+
+    //Populate Aggregations
+    Function agg = new Function();
+    agg.setOperator("dummy1");
+    Expression fieldExpr = new Expression(ExpressionType.IDENTIFIER);
+    fieldExpr.setIdentifier(new Identifier("dummy1"));
+    agg.setOperands(Arrays.asList(fieldExpr));
+    Expression funcExpr = new Expression(ExpressionType.FUNCTION);
+    funcExpr.setFunctionCall(agg);
+    req.addToSelectList(funcExpr);
+
+    Expression filterExpr = new Expression(ExpressionType.FUNCTION);
+    Function func1 = new Function(FilterOperator.AND.toString());
+    func1.addToOperands(RequestUtils.generateFilterQuery(FilterOperator.EQUALITY.toString(), "dummy1", "dummy1"));
+    func1.addToOperands(RequestUtils.generateFilterQuery(FilterOperator.EQUALITY.toString(), "dummy2", "dummy2"));
+    fieldExpr.setFunctionCall(func1);
+    req.setFilterExpression(filterExpr);
+    /*
     //Populate Group-By
     GroupBy groupBy = new GroupBy();
     List<String> columns = new ArrayList<String>();
@@ -102,7 +135,7 @@ public class BrokerRequestSerializationTest {
     agg.setAggregationType("dummy1");
     agg.putToAggregationParams("key1", "dummy1");
     req.addToAggregationsInfo(agg);
-
+*/
     TSerializer normalSerializer = new TSerializer();
     TSerializer compactSerializer = new TSerializer(new TCompactProtocol.Factory());
     normalSerializer.serialize(req);

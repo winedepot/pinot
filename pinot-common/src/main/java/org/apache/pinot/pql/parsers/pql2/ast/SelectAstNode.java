@@ -18,12 +18,8 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
-import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Expression;
-import org.apache.pinot.common.request.GroupBy;
 import org.apache.pinot.common.request.QuerySource;
-import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.pql.parsers.Pql2CompilationException;
 
 

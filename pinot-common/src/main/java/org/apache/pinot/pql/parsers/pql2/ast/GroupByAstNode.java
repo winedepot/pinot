@@ -18,8 +18,12 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 
 
@@ -30,10 +34,12 @@ public class GroupByAstNode extends BaseAstNode {
 
   @Override
   public void updateBrokerRequest(BrokerRequest brokerRequest) {
-    GroupBy groupBy = new GroupBy();
+    List<Expression> groupBy = new ArrayList<>();
     for (AstNode child : getChildren()) {
-      groupBy.addToExpressions(TransformExpressionTree.getStandardExpression(child));
+      Expression expression = new Expression(ExpressionType.IDENTIFIER);
+      expression.setIdentifier(new Identifier(TransformExpressionTree.getStandardExpression(child)));
+      groupBy.add(expression);
     }
-    brokerRequest.setGroupBy(groupBy);
+    brokerRequest.setGroupByList(groupBy);
   }
 }

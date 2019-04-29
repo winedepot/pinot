@@ -21,7 +21,9 @@ package org.apache.pinot.pql.parsers.pql2.ast;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
-import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Identifier;
 
 
 /**
@@ -30,10 +32,10 @@ import org.apache.pinot.common.request.Selection;
 public class StarColumnListAstNode extends BaseAstNode {
   @Override
   public void updateBrokerRequest(BrokerRequest brokerRequest) {
-    Selection selection = new Selection();
-    List<String> modifiableList = new ArrayList<>(1);
-    modifiableList.add("*");
-    selection.setSelectionColumns(modifiableList);
-    brokerRequest.setSelections(selection);
+    List<Expression> selectList = new ArrayList<>();
+    Expression selectExpression = new Expression(ExpressionType.IDENTIFIER);
+    selectExpression.setIdentifier(new Identifier("*"));
+    selectList.add(selectExpression);
+    brokerRequest.setSelectList(selectList);
   }
 }

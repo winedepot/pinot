@@ -19,18 +19,18 @@
 package org.apache.pinot.common.utils.request;
 
 import java.util.List;
-import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.FilterOperator;
+import org.apache.pinot.common.request.Function;
 
 
 public class HavingQueryTree extends QueryTree {
   final List<HavingQueryTree> _children;
-  private final AggregationInfo _aggregationInfo;
+  private final Function _function;
 
-  public HavingQueryTree(AggregationInfo aggregationInfo, List<String> value, FilterOperator operator,
+  public HavingQueryTree(Function function, List<String> value, FilterOperator operator,
       List<HavingQueryTree> children) {
     this._value = value;
-    this._aggregationInfo = aggregationInfo;
+    this._function = function;
     this._operator = operator;
     this._children = children;
   }
@@ -39,8 +39,8 @@ public class HavingQueryTree extends QueryTree {
     return _children;
   }
 
-  public AggregationInfo getAggregationInfo() {
-    return _aggregationInfo;
+  public Function getFunction() {
+    return _function;
   }
 
   @Override
@@ -58,8 +58,8 @@ public class HavingQueryTree extends QueryTree {
     if (_operator == FilterOperator.OR || _operator == FilterOperator.AND) {
       stringBuffer.append(_operator);
     } else {
-      stringBuffer.append(_aggregationInfo.getAggregationType()).append("(")
-          .append(_aggregationInfo.getAggregationParams().toString()).append(")").append(" ").append(_operator)
+      stringBuffer.append(_function.getOperator()).append("(")
+          .append(_function.getOperands().toString()).append(")").append(" ").append(_operator)
           .append(" ").append(_value);
     }
     if (_children != null) {

@@ -160,6 +160,7 @@ struct BrokerRequest {
  21: optional list<Expression> orderByList;
  22: optional i32 limit = 10;
  23: optional i32 offset = 0;
+ 24: optional Expression havingExpression;
 }
 
 /**
