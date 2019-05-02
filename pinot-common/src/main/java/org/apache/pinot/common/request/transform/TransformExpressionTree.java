@@ -23,6 +23,11 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nonnull;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.common.utils.EqualityUtils;
 import org.apache.pinot.pql.parsers.Pql2Compiler;
 import org.apache.pinot.pql.parsers.pql2.ast.AstNode;
@@ -73,6 +78,36 @@ public class TransformExpressionTree {
     } else {
       throw new IllegalStateException("Cannot get standard expression from " + astNode.getClass().getSimpleName());
     }
+  }
+
+  public static Expression getExpression(AstNode astNode) {
+    Expression expression = new Expression();
+    if (astNode instanceof IdentifierAstNode) {
+      // Column name
+      expression.setType(org.apache.pinot.common.request.ExpressionType.IDENTIFIER);
+      expression.setIdentifier(new Identifier(((IdentifierAstNode) astNode).getName()));
+    } else if (astNode instanceof FunctionCallAstNode) {
+      // UDF expression
+      Function func = new Function(((FunctionCallAstNode) astNode).getName().toLowerCase());
+      if (astNode.getChildren()!=null) {
+        for (AstNode child : astNode.getChildren()) {
+          func.addToOperands(getExpression(child));
+        }
+      }
+      expression.setType(org.apache.pinot.common.request.ExpressionType.FUNCTION);
+      expression.setFunctionCall(func);
+    } else if (astNode instanceof StringLiteralAstNode) {
+      // Treat string as column name
+      // NOTE: this is for backward-compatibility
+      expression.setType(org.apache.pinot.common.request.ExpressionType.IDENTIFIER);
+      expression.setIdentifier(new Identifier(((StringLiteralAstNode) astNode).getText()));
+    } else if (astNode instanceof LiteralAstNode) {
+      expression.setType(org.apache.pinot.common.request.ExpressionType.LITERAL);
+      expression.setLiteral(new Literal(((LiteralAstNode) astNode).getValueAsString()));
+    } else {
+      throw new IllegalStateException("Cannot get standard expression from " + astNode.getClass().getSimpleName());
+    }
+    return expression;
   }
 
   // Enum for expression represented by the tree.

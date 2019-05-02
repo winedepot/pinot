@@ -18,8 +18,17 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.Function;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.pql.parsers.Pql2CompilationException;
 
 
@@ -43,6 +52,37 @@ public class OutputColumnAstNode extends BaseAstNode {
 
         IdentifierAstNode node = (IdentifierAstNode) astNode;
         selection.addToSelectionColumns(node.getName());
+      } else {
+        throw new Pql2CompilationException("Output column is neither a function nor an identifier");
+      }
+    }
+  }
+
+  @Override
+  public void updatePinotQuery(PinotQuery pinotQuery) {
+    for (AstNode astNode : getChildren()) {
+      // If the column is a function call, it must be an aggregation function
+      if (astNode instanceof FunctionCallAstNode) {
+        FunctionCallAstNode node = (FunctionCallAstNode) astNode;
+        Expression functionExpr;
+        if (node.getName().equalsIgnoreCase("count")) {
+          // COUNT aggregation function always works on '*'
+          Expression expression;
+          expression = new Expression(ExpressionType.IDENTIFIER);
+          expression.setIdentifier(new Identifier("*"));
+          Function func = new Function("count");
+          func.addToOperands(expression);
+          functionExpr = new Expression(ExpressionType.FUNCTION);
+          functionExpr.setFunctionCall(func);
+        } else {
+          functionExpr = TransformExpressionTree.getExpression(astNode);
+        }
+        pinotQuery.addToSelectList(functionExpr);
+      } else if (astNode instanceof IdentifierAstNode) {
+        IdentifierAstNode node = (IdentifierAstNode) astNode;
+        Expression selectExpr = new Expression(ExpressionType.IDENTIFIER);
+        selectExpr.setIdentifier(new Identifier(node.getName()));
+        pinotQuery.addToSelectList(selectExpr);
       } else {
         throw new Pql2CompilationException("Output column is neither a function nor an identifier");
       }

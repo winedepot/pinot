@@ -25,18 +25,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.pinot.common.request.BrokerRequest;
+import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.ExpressionType;
+import org.apache.pinot.common.request.FilterOperator;
 import org.apache.pinot.common.request.FilterQuery;
 import org.apache.pinot.common.request.FilterQueryMap;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.HavingFilterQuery;
 import org.apache.pinot.common.request.HavingFilterQueryMap;
+import org.apache.pinot.common.request.Identifier;
+import org.apache.pinot.common.request.Literal;
+import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 
 
 public class RequestUtils {
+  private static String DELIMTER = "\t\t";
   private RequestUtils() {
   }
 
@@ -54,6 +63,39 @@ public class RequestUtils {
     FilterQueryMap mp = new FilterQueryMap();
     mp.setFilterQueryMap(filterQueryMap);
     request.setFilterSubQueryMap(mp);
+  }
+
+
+  /**
+   * Generates thrift compliant filterQuery and populate it in the pinot query.
+   * @param filterQueryTree
+   * @param pinotQuery
+   */
+  public static void generateFilterFromTree(FilterQueryTree filterQueryTree, PinotQuery pinotQuery) {
+    Expression root = traverseFilterQuery(filterQueryTree);
+    pinotQuery.setFilterExpression(root);
+  }
+
+
+  private static Expression traverseFilterQuery(FilterQueryTree tree) {
+    Expression query = new Expression(ExpressionType.FUNCTION);
+    final Function operator = new Function(tree.getOperator().name());
+    if (null != tree.getChildren()) {
+      // Not leaf node
+      for (final FilterQueryTree c : tree.getChildren()) {
+        operator.addToOperands(traverseFilterQuery(c));
+      }
+    } else {
+      // Leaf node
+      Expression left = new Expression(ExpressionType.IDENTIFIER);
+      left.setIdentifier(new Identifier(tree.getColumn()));
+      operator.addToOperands(left);
+      Expression right = new Expression(ExpressionType.LITERAL);
+      right.setLiteral(new Literal(StringUtils.join(tree.getValue(), DELIMTER)));
+      operator.addToOperands(right);
+    }
+    query.setFunctionCall(operator);
+    return query;
   }
 
   public static void generateFilterFromTree(HavingQueryTree filterQueryTree, BrokerRequest request) {
