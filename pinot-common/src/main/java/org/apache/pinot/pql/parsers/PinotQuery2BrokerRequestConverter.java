@@ -1,23 +1,20 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements.  See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership.  The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with the License.  You may obtain
+ * a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied.  See the License for the specific language governing permissions and limitations
  * under the License.
  */
 package org.apache.pinot.pql.parsers;
 
+import com.google.common.base.Joiner;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -39,28 +36,62 @@ public class PinotQuery2BrokerRequestConverter {
 
   public BrokerRequest convert(PinotQuery pinotQuery) {
     BrokerRequest brokerRequest = new BrokerRequest();
-    Selection selection = null;
-    List<AggregationInfo> aggregationInfoList = null;
-    GroupBy groupBy = null;
 
     //Query Source
     QuerySource querySource = new QuerySource();
     querySource.setTableName(pinotQuery.getDataSource().getTableName());
     brokerRequest.setQuerySource(querySource);
 
-    Expression filterExpression = pinotQuery.getFilterExpression();
-
-    //Handle filter
-    if (filterExpression != null) {
-      FilterQuery filterQuery;
-      FilterQueryMap filterSubQueryMap = new FilterQueryMap();
-      filterQuery = traverseFilterExpression(filterExpression, filterSubQueryMap);
-      brokerRequest.setFilterQuery(filterQuery);
-      brokerRequest.setFilterSubQueryMap(filterSubQueryMap);
-    }
+    handleFilter(pinotQuery, brokerRequest);
 
     //Handle select list
+    handleSelectList(pinotQuery, brokerRequest);
 
+    //Handle group by
+    GroupBy groupBy = handleGroupBy(pinotQuery);
+
+    //Query Type
+    QueryType queryType = new QueryType();
+    if (brokerRequest.getAggregationsInfo() != null
+        && brokerRequest.getAggregationsInfo().size() > 0) {
+      if (groupBy != null) {
+        queryType.setHasGroup_by(true);
+      } else {
+        queryType.setHasAggregation(true);
+      }
+    } else {
+      queryType.setHasSelection(true);
+    }
+    brokerRequest.setQueryType(queryType);
+
+    //TODO: these should not be part of the query?
+    //brokerRequest.setEnableTrace();
+    //brokerRequest.setDebugOptions();
+    //brokerRequest.setQueryOptions();
+    //brokerRequest.setBucketHashKey();
+    //brokerRequest.setDuration();
+
+    return brokerRequest;
+  }
+
+  private GroupBy handleGroupBy(PinotQuery pinotQuery) {
+    GroupBy groupBy = null;
+    List<Expression> groupByList = pinotQuery.getGroupByList();
+    if (groupByList != null && groupByList.size() > 0) {
+
+      groupBy = new GroupBy();
+      for (Expression expression : groupByList) {
+        String expressionStr = standardizeExpression(expression);
+        groupBy.addToExpressions(expressionStr);
+      }
+      groupBy.setTopN(pinotQuery.getLimit());
+    }
+    return groupBy;
+  }
+
+  private void handleSelectList(PinotQuery pinotQuery, BrokerRequest brokerRequest) {
+    Selection selection = null;
+    List<AggregationInfo> aggregationInfoList = null;
     for (Expression expression : pinotQuery.getSelectList()) {
       ExpressionType type = expression.getType();
       switch (type) {
@@ -95,40 +126,19 @@ public class PinotQuery2BrokerRequestConverter {
     if (aggregationInfoList != null && aggregationInfoList.size() > 0) {
       brokerRequest.setAggregationsInfo(aggregationInfoList);
     }
+  }
 
-    //Handle group by
-    List<Expression> groupByList = pinotQuery.getGroupByList();
-    if (groupByList != null && groupByList.size() > 0) {
+  private void handleFilter(PinotQuery pinotQuery, BrokerRequest brokerRequest) {
+    Expression filterExpression = pinotQuery.getFilterExpression();
 
-      groupBy = new GroupBy();
-      for (Expression expression : groupByList) {
-        String expressionStr = standardizeExpression(expression);
-        groupBy.addToExpressions(expressionStr);
-      }
-      groupBy.setTopN(pinotQuery.getLimit());
+    //Handle filter
+    if (filterExpression != null) {
+      FilterQuery filterQuery;
+      FilterQueryMap filterSubQueryMap = new FilterQueryMap();
+      filterQuery = traverseFilterExpression(filterExpression, filterSubQueryMap);
+      brokerRequest.setFilterQuery(filterQuery);
+      brokerRequest.setFilterSubQueryMap(filterSubQueryMap);
     }
-
-    //Query Type
-    QueryType queryType = new QueryType();
-    if (aggregationInfoList != null && aggregationInfoList.size() > 0) {
-      if (groupBy != null) {
-        queryType.setHasGroup_by(true);
-      } else {
-        queryType.setHasAggregation(true);
-      }
-    } else {
-      queryType.setHasSelection(true);
-    }
-    brokerRequest.setQueryType(queryType);
-
-    //TODO: these should not be part of the query?
-    //brokerRequest.setEnableTrace();
-    //brokerRequest.setDebugOptions();
-    //brokerRequest.setQueryOptions();
-    //brokerRequest.setBucketHashKey();
-    //brokerRequest.setDuration();
-
-    return brokerRequest;
   }
 
   private String standardizeExpression(Expression expression) {
@@ -204,10 +214,11 @@ public class PinotQuery2BrokerRequestConverter {
         String operator = functionCall.getOperator();
         FilterOperator filterOperator = FilterOperator.valueOf(operator);
         filterQuery.setOperator(filterOperator);
+        List<Expression> operands = functionCall.getOperands();
         switch (filterOperator) {
           case AND:
           case OR:
-            for (Expression operand : functionCall.getOperands()) {
+            for (Expression operand : operands) {
               FilterQuery childFilter = traverseFilterExpression(operand, filterSubQueryMap);
               childFilterIds.add(childFilter.getId());
             }
@@ -218,9 +229,20 @@ public class PinotQuery2BrokerRequestConverter {
           case REGEXP_LIKE:
           case NOT_IN:
           case IN:
-            filterQuery.setColumn(functionCall.getOperands().get(0).getIdentifier().getName());
-            String value = functionCall.getOperands().get(0).getLiteral().getValue();
-            filterQuery.setValue(Arrays.asList(value.trim().split(", ")));
+            //first operand is the always the column
+            String column = null;
+            //remaining operands are arguments to the function
+            List<String> valueList = new ArrayList<>();
+            for (int i = 0; i < operands.size(); i++) {
+              Expression operand = operands.get(i);
+              if (i == 0) {
+                column = standardizeExpression(operand);
+              } else {
+                valueList.add(standardizeExpression(operand));
+              }
+            }
+            filterQuery.setColumn(column);
+            filterQuery.setValue(valueList);
             break;
           default:
             throw new UnsupportedOperationException("Filter UDF not supported");
@@ -232,4 +254,6 @@ public class PinotQuery2BrokerRequestConverter {
     }
     return filterQuery;
   }
+
+
 }
