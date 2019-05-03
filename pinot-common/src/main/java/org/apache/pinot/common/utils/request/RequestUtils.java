@@ -27,10 +27,10 @@ import java.util.Set;
 import java.util.Stack;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.commons.math3.analysis.function.Exp;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.ExpressionType;
-import org.apache.pinot.common.request.FilterOperator;
 import org.apache.pinot.common.request.FilterQuery;
 import org.apache.pinot.common.request.FilterQueryMap;
 import org.apache.pinot.common.request.Function;
@@ -42,10 +42,12 @@ import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
+import org.apache.pinot.pql.parsers.pql2.ast.PredicateAstNode;
 
 
 public class RequestUtils {
   private static String DELIMTER = "\t\t";
+
   private RequestUtils() {
   }
 
@@ -65,22 +67,29 @@ public class RequestUtils {
     request.setFilterSubQueryMap(mp);
   }
 
-
-  /**
-   * Generates thrift compliant filterQuery and populate it in the pinot query.
-   * @param filterQueryTree
-   * @param pinotQuery
-   */
-  public static void generateFilterFromTree(FilterQueryTree filterQueryTree, PinotQuery pinotQuery) {
-    Expression root = traverseFilterQuery(filterQueryTree);
-    pinotQuery.setFilterExpression(root);
+  public static Expression getIdentifierExpression(String identifier) {
+    Expression expression = new Expression(ExpressionType.IDENTIFIER);
+    expression.setIdentifier(new Identifier(identifier));
+    return expression;
   }
 
+  public static Expression getLiteralExpression(String literal) {
+    Expression expression = new Expression(ExpressionType.LITERAL);
+    expression.setLiteral(new Literal(literal));
+    return expression;
+  }
+
+  public static Expression getFunctionExpression(String operator) {
+    Expression expression = new Expression(ExpressionType.FUNCTION);
+    Function function = new Function(operator);
+    expression.setFunctionCall(function);
+    return expression;
+  }
 
   private static Expression traverseFilterQuery(FilterQueryTree tree) {
     Expression query = new Expression(ExpressionType.FUNCTION);
     final Function operator = new Function(tree.getOperator().name());
-    if (null != tree.getChildren()) {
+    if (null != tree.getChildren() && !tree.getChildren().isEmpty()) {
       // Not leaf node
       for (final FilterQueryTree c : tree.getChildren()) {
         operator.addToOperands(traverseFilterQuery(c));

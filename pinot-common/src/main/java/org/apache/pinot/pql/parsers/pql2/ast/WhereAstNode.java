@@ -36,6 +36,6 @@ public class WhereAstNode extends BaseAstNode {
   @Override
   public void updatePinotQuery(PinotQuery pinotQuery) {
     PredicateAstNode predicateAstNode = (PredicateAstNode) getChildren().get(0);
-    RequestUtils.generateFilterFromTree(predicateAstNode.buildFilterQueryTree(), pinotQuery);
+    pinotQuery.setFilterExpression(predicateAstNode.buildFilterExpression());
   }
 }

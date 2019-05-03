@@ -18,15 +18,13 @@
  */
 package org.apache.pinot.pql.parsers.pql2.ast;
 
-import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.Expression;
-import org.apache.pinot.common.request.ExpressionType;
 import org.apache.pinot.common.request.Function;
-import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.pql.parsers.Pql2CompilationException;
 
 
@@ -56,16 +54,14 @@ public class OrderByAstNode extends BaseAstNode {
     for (AstNode astNode : getChildren()) {
       if (astNode instanceof OrderByExpressionAstNode) {
         OrderByExpressionAstNode node = (OrderByExpressionAstNode) astNode;
-        Expression orderByExpression = new Expression(ExpressionType.FUNCTION);
         String ordering = "desc";
         if ("asc".equalsIgnoreCase(node.getOrdering())) {
           ordering = "asc";
         }
-        Function orderByFunc = new Function(ordering);
-        Expression colExpr = new Expression(ExpressionType.IDENTIFIER);
-        colExpr.setIdentifier(new Identifier(node.getColumn()));
+        Expression orderByExpression = RequestUtils.getFunctionExpression(ordering);
+        Function orderByFunc = orderByExpression.getFunctionCall();
+        Expression colExpr = RequestUtils.getIdentifierExpression(node.getColumn());
         orderByFunc.addToOperands(colExpr);
-        orderByExpression.setFunctionCall(orderByFunc);
         pinotQuery.addToOrderByList(orderByExpression);
       } else {
         throw new Pql2CompilationException("Child node of ORDER BY node is not an expression node");

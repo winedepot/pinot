@@ -22,10 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.Expression;
-import org.apache.pinot.common.request.ExpressionType;
-import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.utils.request.RequestUtils;
 
 
 /**
@@ -43,8 +42,7 @@ public class StarColumnListAstNode extends BaseAstNode {
 
   @Override
   public void updatePinotQuery(PinotQuery pinotQuery) {
-    Expression starExpr = new Expression(ExpressionType.IDENTIFIER);
-    starExpr.setIdentifier(new Identifier("*"));
+    Expression starExpr = RequestUtils.getIdentifierExpression("*");
     pinotQuery.addToSelectList(starExpr);
   }
 }

@@ -24,19 +24,16 @@ import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.DataSource;
 import org.apache.pinot.common.request.Expression;
-import org.apache.pinot.common.request.ExpressionType;
 import org.apache.pinot.common.request.FilterOperator;
 import org.apache.pinot.common.request.FilterQuery;
 import org.apache.pinot.common.request.FilterQueryMap;
-import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.GroupBy;
-import org.apache.pinot.common.request.Identifier;
-import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.QuerySource;
 import org.apache.pinot.common.request.QueryType;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.thrift.TException;
 import org.apache.thrift.TSerializer;
 import org.apache.thrift.protocol.TCompactProtocol;
@@ -135,7 +132,6 @@ public class BrokerRequestSerializationTest {
 //    System.out.println("Latency is :" + (t.getLatencyMs() / (float) numRequests));
   }
 
-
   @Test
   public static void testSerializationWithPinotQuery()
       throws TException {
@@ -152,73 +148,42 @@ public class BrokerRequestSerializationTest {
     //Populate Group-By
 
     List<Expression> groupByList = new ArrayList<>();
-    Expression groupByCol1Expr = new Expression(ExpressionType.IDENTIFIER);
-    groupByCol1Expr.setIdentifier(new Identifier("dummy1"));
-    groupByList.add(groupByCol1Expr);
-    Expression groupByCol2Expr = new Expression(ExpressionType.IDENTIFIER);
-    groupByCol2Expr.setIdentifier(new Identifier("dummy2"));
-    groupByList.add(groupByCol2Expr);
+    groupByList.add(RequestUtils.getIdentifierExpression("dummy1"));
+    groupByList.add(RequestUtils.getIdentifierExpression("dummy2"));
     pinotQuery.setGroupByList(groupByList);
     pinotQuery.setLimit(100);
 
     //Populate Selections
-    Expression s1 = new Expression(ExpressionType.IDENTIFIER);
-    s1.setIdentifier(new Identifier("dummy1"));
-    pinotQuery.addToSelectList(s1);
+    pinotQuery.addToSelectList(RequestUtils.getIdentifierExpression("dummy1"));
 
     //Populate OrderBy
-    Expression ascExpr = new Expression(ExpressionType.FUNCTION);
-    Function ascFunc = new Function("asc");
-    Expression col1Expr = new Expression(ExpressionType.IDENTIFIER);
-    col1Expr.setIdentifier(new Identifier("dummy1"));
-    ascFunc.addToOperands(col1Expr);
-    ascExpr.setFunctionCall(ascFunc);
+    Expression ascExpr = RequestUtils.getFunctionExpression("asc");
+    ascExpr.getFunctionCall().addToOperands(RequestUtils.getIdentifierExpression("dummy1"));
     pinotQuery.addToOrderByList(ascExpr);
 
     //Populate FilterQuery
-    Expression filter = new Expression(ExpressionType.FUNCTION);
-    Function andOps = new Function(FilterOperator.AND.name());
+    Expression filter = RequestUtils.getFunctionExpression(FilterOperator.AND.name());
 
-    Expression filterExpr1 = new Expression(ExpressionType.FUNCTION);
-    Function funcExpr1 = new Function(FilterOperator.EQUALITY.name());
-    Expression filter1Left = new Expression(ExpressionType.IDENTIFIER);
-    filter1Left.setIdentifier(new Identifier("dummy1"));
-    funcExpr1.addToOperands(filter1Left);
-    Expression filter1Right = new Expression(ExpressionType.LITERAL);
-    filter1Right.setLiteral(new Literal("dummy1"));
-    funcExpr1.addToOperands(filter1Right);
-    filterExpr1.setFunctionCall(funcExpr1);
-    andOps.addToOperands(filterExpr1);
+    Expression filterExpr1 = RequestUtils.getFunctionExpression(FilterOperator.EQUALITY.name());
+    filterExpr1.getFunctionCall().addToOperands(RequestUtils.getIdentifierExpression("dummy1"));
+    filterExpr1.getFunctionCall().addToOperands(RequestUtils.getLiteralExpression("dummy1"));
+    filter.getFunctionCall().addToOperands(filterExpr1);
 
+    Expression filterExpr2 = RequestUtils.getFunctionExpression(FilterOperator.EQUALITY.name());
+    filterExpr2.getFunctionCall().addToOperands(RequestUtils.getIdentifierExpression("dummy2"));
+    filterExpr2.getFunctionCall().addToOperands(RequestUtils.getLiteralExpression("dummy2"));
+    filter.getFunctionCall().addToOperands(filterExpr2);
 
-    Expression filterExpr2 = new Expression(ExpressionType.FUNCTION);
-    Function funcExpr2 = new Function(FilterOperator.EQUALITY.name());
-    Expression filter2Left = new Expression(ExpressionType.IDENTIFIER);
-    filter2Left.setIdentifier(new Identifier("dummy2"));
-    funcExpr2.addToOperands(filter2Left);
-    Expression filter2Right = new Expression(ExpressionType.LITERAL);
-    filter2Right.setLiteral(new Literal("dummy2"));
-    funcExpr2.addToOperands(filter2Right);
-    filterExpr2.setFunctionCall(funcExpr2);
-    andOps.addToOperands(filterExpr2);
-
-    filter.setFunctionCall(andOps);
     pinotQuery.setFilterExpression(filter);
 
-
     //Populate Aggregations
-    Expression aggExpr = new Expression(ExpressionType.FUNCTION);
-    Function aggFunc = new Function("dummy1");
-    Expression aggCol = new Expression(ExpressionType.IDENTIFIER);
-    aggCol.setIdentifier(new Identifier("dummy1"));
-    aggFunc.addToOperands(aggCol);
-    aggExpr.setFunctionCall(aggFunc);
+    Expression aggExpr = RequestUtils.getFunctionExpression("dummy1");
+    aggExpr.getFunctionCall().addToOperands(RequestUtils.getIdentifierExpression("dummy"));
     pinotQuery.addToSelectList(aggExpr);
 
     req.setPinotQuery(pinotQuery);
 
     // END Set PinotQuery
-
 
     // Populate Query Type
     QueryType type = new QueryType();
