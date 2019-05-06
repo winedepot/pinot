@@ -50,13 +50,13 @@ public class PinotQuery2BrokerRequestConverter {
     handleSelectList(pinotQuery, brokerRequest);
 
     //Handle group by
-    GroupBy groupBy = handleGroupBy(pinotQuery);
+    handleGroupBy(pinotQuery, brokerRequest);
 
     //Query Type
     QueryType queryType = new QueryType();
     if (brokerRequest.getAggregationsInfo() != null
         && brokerRequest.getAggregationsInfo().size() > 0) {
-      if (groupBy != null) {
+      if (brokerRequest.getGroupBy() != null) {
         queryType.setHasGroup_by(true);
       } else {
         queryType.setHasAggregation(true);
@@ -64,31 +64,31 @@ public class PinotQuery2BrokerRequestConverter {
     } else {
       queryType.setHasSelection(true);
     }
-    brokerRequest.setQueryType(queryType);
+    // brokerRequest.setQueryType(queryType);
 
     //TODO: these should not be part of the query?
     //brokerRequest.setEnableTrace();
     //brokerRequest.setDebugOptions();
-    //brokerRequest.setQueryOptions();
+    brokerRequest.setQueryOptions(pinotQuery.getQueryOptions());
     //brokerRequest.setBucketHashKey();
     //brokerRequest.setDuration();
 
     return brokerRequest;
   }
 
-  private GroupBy handleGroupBy(PinotQuery pinotQuery) {
+  private void handleGroupBy(PinotQuery pinotQuery, BrokerRequest brokerRequest) {
     GroupBy groupBy = null;
     List<Expression> groupByList = pinotQuery.getGroupByList();
     if (groupByList != null && groupByList.size() > 0) {
 
       groupBy = new GroupBy();
       for (Expression expression : groupByList) {
-        String expressionStr = standardizeExpression(expression);
+        String expressionStr = standardizeExpression(expression, true);
         groupBy.addToExpressions(expressionStr);
       }
       groupBy.setTopN(pinotQuery.getLimit());
+      brokerRequest.setGroupBy(groupBy);
     }
-    return groupBy;
   }
 
   private void handleSelectList(PinotQuery pinotQuery, BrokerRequest brokerRequest) {
@@ -120,8 +120,12 @@ public class PinotQuery2BrokerRequestConverter {
     }
 
     if (selection != null) {
-      selection.setOffset(pinotQuery.getOffset());
-      selection.setSize(pinotQuery.getLimit());
+      if (pinotQuery.getOffset() > 0) {
+        selection.setOffset(pinotQuery.getOffset());
+      }
+      if (pinotQuery.getLimit() != 10) {
+        selection.setSize(pinotQuery.getLimit());
+      }
       brokerRequest.setSelections(selection);
     }
 
@@ -143,19 +147,26 @@ public class PinotQuery2BrokerRequestConverter {
     }
   }
 
-  private String standardizeExpression(Expression expression) {
+  private String standardizeExpression(Expression expression, boolean treatLiteralAsIdentifier) {
     switch (expression.getType()) {
       case LITERAL:
-        return expression.getLiteral().getValue();
+        if(treatLiteralAsIdentifier) {
+          return expression.getLiteral().getValue();
+        } else {
+          return "'" + expression.getLiteral().getValue() + "'";
+        }
       case IDENTIFIER:
         return expression.getIdentifier().getName();
       case FUNCTION:
         Function functionCall = expression.getFunctionCall();
         StringBuilder sb = new StringBuilder();
-        sb.append(functionCall.getOperator());
+        sb.append(functionCall.getOperator().toLowerCase());
         sb.append("(");
+        String delim = "";
         for (Expression operand : functionCall.getOperands()) {
-          sb.append(standardizeExpression(operand));
+          sb.append(delim);
+          sb.append(standardizeExpression(operand, false));
+          delim = ",";
         }
         sb.append(")");
         return sb.toString();
@@ -187,9 +198,11 @@ public class PinotQuery2BrokerRequestConverter {
           columnName = functionParam.getIdentifier().getName();
           break;
         case FUNCTION:
+          columnName = standardizeExpression(functionParam, false);
+          break;
         default:
           throw new UnsupportedOperationException(
-              "Aggregation function does not support functions as arguments");
+              "Unrecognized functionParamType:" + functionParam.getType());
       }
     }
     AggregationInfo aggregationInfo = new AggregationInfo();
@@ -238,9 +251,9 @@ public class PinotQuery2BrokerRequestConverter {
             for (int i = 0; i < operands.size(); i++) {
               Expression operand = operands.get(i);
               if (i == 0) {
-                column = standardizeExpression(operand);
+                column = standardizeExpression(operand, false);
               } else {
-                valueList.add(standardizeExpression(operand));
+                valueList.add(standardizeExpression(operand, true));
               }
             }
             filterQuery.setColumn(column);
@@ -251,11 +264,7 @@ public class PinotQuery2BrokerRequestConverter {
         }
         break;
     }
-    if (childFilterIds.size() > 0) {
-      filterQuery.setNestedFilterQueryIds(childFilterIds);
-    }
+    filterQuery.setNestedFilterQueryIds(childFilterIds);
     return filterQuery;
   }
-
-
 }

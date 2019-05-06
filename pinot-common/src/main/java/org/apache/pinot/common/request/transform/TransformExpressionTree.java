@@ -111,7 +111,7 @@ public class TransformExpressionTree {
     } else if (astNode instanceof FunctionCallAstNode) {
       // Function expression
       Expression expression =
-          RequestUtils.getFunctionExpression(((FunctionCallAstNode) astNode).getName().toLowerCase());
+          RequestUtils.getFunctionExpression(((FunctionCallAstNode) astNode).getName());
       Function func = expression.getFunctionCall();
       if (astNode.getChildren() != null) {
         for (AstNode child : astNode.getChildren()) {

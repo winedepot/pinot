@@ -137,7 +137,7 @@ public class Pql2CompilerTest {
 
   @Test
   public void testTopZero() {
-    testTopZeroFor("select count(*) from someTable where c = 5 group by X top 0", TopAstNode.DEFAULT_TOP_N, false);
+    testTopZeroFor("select COUNT(*) from someTable where c = 5 group by X top 0", TopAstNode.DEFAULT_TOP_N, false);
     testTopZeroFor("select count(*) from someTable where c = 5 group by X top 1", 1, false);
     testTopZeroFor("select count(*) from someTable where c = 5 group by X top -1", TopAstNode.DEFAULT_TOP_N, true);
   }
@@ -360,22 +360,16 @@ public class Pql2CompilerTest {
     // Test PinotQuery
     selectFunctionList = brokerRequest.getPinotQuery().getSelectList();
     Assert.assertEquals(selectFunctionList.size(), 1);
-    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperator(), "sum");
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperator(), "SUM");
     Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().size(), 1);
-    Assert
-        .assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperator(),
-            "add");
-    Assert.assertEquals(
-        selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().size(), 2);
-    Assert.assertEquals(
-        selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(0)
-            .getIdentifier().getName(), "foo");
-    Assert.assertEquals(
-        selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1)
-            .getLiteral().getValue(), "bar");
+
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperator(), "ADD");
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().size(), 2);
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(0).getIdentifier().getName(), "foo");
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1).getLiteral().getValue(), "bar");
     groupbyList = brokerRequest.getPinotQuery().getGroupByList();
     Assert.assertEquals(groupbyList.size(), 1);
-    Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "sub");
+    Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "SUB");
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().size(), 2);
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getValue(), "foo");
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(1).getIdentifier().getName(), "bar");
