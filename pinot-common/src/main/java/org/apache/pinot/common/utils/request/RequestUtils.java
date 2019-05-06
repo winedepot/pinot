@@ -94,6 +94,15 @@ public class RequestUtils {
     return expression;
   }
 
+
+  public static Expression getLiteralExpression(String value) {
+    Expression expression = new Expression(ExpressionType.LITERAL);
+    Literal literal = new Literal();
+    literal.setStringValue(value);
+    expression.setLiteral(literal);
+    return expression;
+  }
+
   public static Expression getFunctionExpression(String operator) {
     Expression expression = new Expression(ExpressionType.FUNCTION);
     Function function = new Function(operator);

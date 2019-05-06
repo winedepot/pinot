@@ -19,7 +19,9 @@
 package org.apache.pinot.sql.parsers;
 
 import java.util.List;
+import org.apache.calcite.sql.SqlKind;
 import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.PinotQuery;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -35,11 +37,11 @@ public class CalciteSqlCompilerTest {
 
     PinotQuery pinotQuery =
         CalciteSqlParser.compileToPinotQuery("select * from vegetables where origin = 'Martha''s Vineyard'");
-    Assert.assertEquals(pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+    Assert.assertEquals(pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getLiteral().getStringValue(),
         "'Martha''s Vineyard'");
 
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where origin = 'Martha\"\"s Vineyard'");
-    Assert.assertEquals(pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getLiteral().getValue(),
+    Assert.assertEquals(pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getLiteral().getStringValue(),
         "'Martha\"\"s Vineyard'");
 
     pinotQuery =
@@ -52,6 +54,46 @@ public class CalciteSqlCompilerTest {
     Assert
         .assertEquals(pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getIdentifier().getName(),
             "Martha''s Vineyard");
+  }
+
+  @Test
+  public void testFilterCaluses() {
+    PinotQuery pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where a > 1");
+    Function func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.GREATER_THAN.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "A");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "1");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where b < 100");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.LESS_THAN.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "B");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "100");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where c >= 10");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.GREATER_THAN_OR_EQUAL.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "C");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "10");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where d <= 50");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.LESS_THAN_OR_EQUAL.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "D");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "50");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where e BETWEEN 70 AND 80");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.BETWEEN.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "E");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "70");
+    Assert.assertEquals(func.getOperands().get(2).getLiteral().getStringValue(), "80");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where regexp_like(E, '^U.*')");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), "REGEXP_LIKE");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "E");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "'^U.*'");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where f LIKE '%potato%'");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.LIKE.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "F");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "'%potato%'");
   }
 
   @Test
@@ -187,13 +229,13 @@ public class CalciteSqlCompilerTest {
         CalciteSqlParser.compileToPinotQuery("SELECT SUM('foo'), MAX(\"bar\") FROM myTable GROUP BY 'foo', \"bar\"");
     List<Expression> selectFunctionList = pinotQuery.getSelectList();
     Assert.assertEquals(selectFunctionList.size(), 2);
-    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getValue(),
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(),
         "'foo'");
     Assert.assertEquals(selectFunctionList.get(1).getFunctionCall().getOperands().get(0).getIdentifier().getName(),
         "bar");
     List<Expression> groupbyList = pinotQuery.getGroupByList();
     Assert.assertEquals(groupbyList.size(), 2);
-    Assert.assertEquals(groupbyList.get(0).getLiteral().getValue(), "'foo'");
+    Assert.assertEquals(groupbyList.get(0).getLiteral().getStringValue(), "'foo'");
     Assert.assertEquals(groupbyList.get(1).getIdentifier().getName(), "bar");
 
     // For UDF, string literal won't be treated as column but as LITERAL
@@ -213,7 +255,7 @@ public class CalciteSqlCompilerTest {
             .getIdentifier().getName(), "FOO");
     Assert.assertEquals(
         selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1)
-            .getLiteral().getValue(), "'bar'");
+            .getLiteral().getStringValue(), "'bar'");
     groupbyList = pinotQuery.getGroupByList();
     Assert.assertEquals(groupbyList.size(), 1);
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "SUB");

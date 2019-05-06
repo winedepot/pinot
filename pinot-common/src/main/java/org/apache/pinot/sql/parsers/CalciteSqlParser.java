@@ -219,15 +219,16 @@ public class CalciteSqlParser {
         // Filtering
       case OR:
       case AND:
-      case BETWEEN:
       case EQUALS:
       case NOT_EQUALS:
+      case BETWEEN:
       case GREATER_THAN:
       case GREATER_THAN_OR_EQUAL:
       case LESS_THAN:
       case LESS_THAN_OR_EQUAL:
       case IN:
       case NOT_IN:
+      case LIKE:
         SqlBasicCall funcSqlNode = (SqlBasicCall) node;
         String funcName = funcSqlNode.getOperator().getKind().name();
         if (funcSqlNode.getOperator().getKind() == SqlKind.OTHER_FUNCTION) {
