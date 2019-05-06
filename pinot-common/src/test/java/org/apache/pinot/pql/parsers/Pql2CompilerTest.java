@@ -374,4 +374,11 @@ public class Pql2CompilerTest {
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getValue(), "foo");
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(1).getIdentifier().getName(), "bar");
   }
+
+  @Test
+  public void testConverter(){
+    BrokerRequest brokerRequest = COMPILER.compileToBrokerRequest(
+        "SELECT SUM(DepDelayMinutes), SUM(ArrDel15), SUM(DepDelay), SUM(DepDel15) FROM myStarTable WHERE Carrier IN ('UA', 'WN', 'FL', 'F9') AND Carrier NOT IN ('EV', 'AS', 'FL') AND DayofMonth > 5 AND DayofMonth <= 17 AND Diverted > 0 AND OriginCityName > 'Detroit, MI' GROUP BY CRSDepTime");
+
+  }
 }

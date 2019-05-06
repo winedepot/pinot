@@ -144,6 +144,12 @@ public class Pql2Compiler implements AbstractCompiler {
               .append("br2.getFilterQuery() = ").append(br2.getFilterQuery());
           throw new Exception("Filter did not match after conversion." + sb);
         }
+
+        if (!br1.getFilterSubQueryMap().equals(br2.getFilterSubQueryMap())) {
+          sb.append("br1.getFilterSubQueryMap() = ").append(br1.getFilterSubQueryMap()).append("\n")
+              .append("br2.getFilterSubQueryMap() = ").append(br2.getFilterSubQueryMap());
+          throw new Exception("FilterSubQueryMap did not match after conversion." + sb);
+        }
       }
       if (br1.getSelections() != null) {
         if (!br1.getSelections().equals(br2.getSelections())) {

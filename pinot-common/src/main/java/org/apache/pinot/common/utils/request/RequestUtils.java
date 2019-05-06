@@ -86,27 +86,6 @@ public class RequestUtils {
     return expression;
   }
 
-  private static Expression traverseFilterQuery(FilterQueryTree tree) {
-    Expression query = new Expression(ExpressionType.FUNCTION);
-    final Function operator = new Function(tree.getOperator().name());
-    if (null != tree.getChildren() && !tree.getChildren().isEmpty()) {
-      // Not leaf node
-      for (final FilterQueryTree c : tree.getChildren()) {
-        operator.addToOperands(traverseFilterQuery(c));
-      }
-    } else {
-      // Leaf node
-      Expression left = new Expression(ExpressionType.IDENTIFIER);
-      left.setIdentifier(new Identifier(tree.getColumn()));
-      operator.addToOperands(left);
-      Expression right = new Expression(ExpressionType.LITERAL);
-      right.setLiteral(new Literal(StringUtils.join(tree.getValue(), DELIMTER)));
-      operator.addToOperands(right);
-    }
-    query.setFunctionCall(operator);
-    return query;
-  }
-
   public static void generateFilterFromTree(HavingQueryTree filterQueryTree, BrokerRequest request) {
     Map<Integer, HavingFilterQuery> filterQueryMap = new HashMap<>();
     MutableInt currentId = new MutableInt(0);
@@ -126,11 +105,9 @@ public class RequestUtils {
     final List<Integer> f = new ArrayList<>();
     if (null != tree.getChildren()) {
       for (final FilterQueryTree c : tree.getChildren()) {
-        int childNodeId = currentId.intValue();
-        currentId.increment();
-
-        f.add(childNodeId);
         final FilterQuery q = traverseFilterQueryAndPopulateMap(c, filterQueryMap, currentId);
+        int childNodeId = q.getId();
+        f.add(childNodeId);
         filterQueryMap.put(childNodeId, q);
       }
     }
