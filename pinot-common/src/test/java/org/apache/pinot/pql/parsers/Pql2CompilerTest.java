@@ -18,6 +18,9 @@
  */
 package org.apache.pinot.pql.parsers;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.Collections;
 import java.util.List;
 import org.apache.pinot.common.request.AggregationInfo;
@@ -29,6 +32,8 @@ import org.apache.pinot.common.request.GroupBy;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.pql.parsers.pql2.ast.FilterKind;
 import org.apache.pinot.pql.parsers.pql2.ast.TopAstNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -38,6 +43,7 @@ import org.testng.annotations.Test;
  */
 public class Pql2CompilerTest {
   private static final Pql2Compiler COMPILER = new Pql2Compiler();
+  private static final Logger LOGGER = LoggerFactory.getLogger(Pql2Compiler.class);
 
   @Test
   public void testQuotedStrings() {
@@ -338,10 +344,10 @@ public class Pql2CompilerTest {
     // Test PinotQuery
     List<Expression> selectFunctionList = brokerRequest.getPinotQuery().getSelectList();
     Assert.assertEquals(selectFunctionList.size(), 2);
-    Assert
-        .assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(), "foo");
-    Assert
-        .assertEquals(selectFunctionList.get(1).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(), "bar");
+    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(),
+        "foo");
+    Assert.assertEquals(selectFunctionList.get(1).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(),
+        "bar");
     List<Expression> groupbyList = brokerRequest.getPinotQuery().getGroupByList();
     Assert.assertEquals(groupbyList.size(), 2);
     Assert.assertEquals(groupbyList.get(0).getLiteral().getStringValue(), "foo");
@@ -363,10 +369,17 @@ public class Pql2CompilerTest {
     Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperator(), "SUM");
     Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().size(), 1);
 
-    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperator(), "ADD");
-    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().size(), 2);
-    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(0).getIdentifier().getName(), "foo");
-    Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1).getLiteral().getStringValue(), "bar");
+    Assert
+        .assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperator(),
+            "ADD");
+    Assert.assertEquals(
+        selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().size(), 2);
+    Assert.assertEquals(
+        selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(0)
+            .getIdentifier().getName(), "foo");
+    Assert.assertEquals(
+        selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1)
+            .getLiteral().getStringValue(), "bar");
     groupbyList = brokerRequest.getPinotQuery().getGroupByList();
     Assert.assertEquals(groupbyList.size(), 1);
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "SUB");
@@ -376,11 +389,26 @@ public class Pql2CompilerTest {
   }
 
   @Test
-  public void testConverter(){
-    BrokerRequest brokerRequest = COMPILER.compileToBrokerRequest(
+  public void testConverter()
+      throws IOException {
+    COMPILER.compileToBrokerRequest("SELECT MIN(div(DaysSinceEpoch,2)) FROM mytable");
+    COMPILER.compileToBrokerRequest(
         "SELECT SUM(DepDelayMinutes), SUM(ArrDel15), SUM(DepDelay), SUM(DepDel15) FROM myStarTable WHERE Carrier IN ('UA', 'WN', 'FL', 'F9') AND Carrier NOT IN ('EV', 'AS', 'FL') AND DayofMonth > 5 AND DayofMonth <= 17 AND Diverted > 0 AND OriginCityName > 'Detroit, MI' GROUP BY CRSDepTime");
-    brokerRequest = COMPILER.compileToBrokerRequest("Select * from T where a > 1 and a < 10");
-    brokerRequest = COMPILER.compileToBrokerRequest("Select * from T where a between 1 and 10");
+    COMPILER.compileToBrokerRequest("Select * from T where a > 1 and a < 10");
+    COMPILER.compileToBrokerRequest("Select * from T where a between 1 and 10");
 
+    final BufferedReader br = new BufferedReader(
+        new InputStreamReader(Pql2CompilerTest.class.getClassLoader().getResourceAsStream("pql_queries.list")));
+    String pql;
+    int seqId = 0;
+    while ((pql = br.readLine()) != null) {
+      try {
+        LOGGER.info("Trying to compile PQL Id - {}, PQL: {}", seqId++, pql);
+        COMPILER.compileToBrokerRequest(pql);
+      } catch (Exception e) {
+        LOGGER.error("Failed to compile pql {} to BrokerRequest.", pql, e);
+        throw e;
+      }
+    }
   }
 }
