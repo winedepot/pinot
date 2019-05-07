@@ -74,6 +74,7 @@ public class PinotQuery2BrokerRequestConverter {
     } else {
       queryType.setHasSelection(true);
     }
+    // Commenting this out since the current code does not set it.
     // brokerRequest.setQueryType(queryType);
 
     //TODO: these should not be part of the query?

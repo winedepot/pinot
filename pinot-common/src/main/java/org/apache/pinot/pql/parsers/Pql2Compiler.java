@@ -117,7 +117,6 @@ public class Pql2Compiler implements AbstractCompiler {
         if (validateConverter) {
           PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
           BrokerRequest tempBrokerRequest = converter.convert(pinotQuery);
-          tempBrokerRequest.setQueryOptions(pinotQuery.getQueryOptions());
           boolean result = validate(brokerRequest, tempBrokerRequest);
           if (!result) {
             LOGGER.warn("Pinot query to broker request conversion failed. PQL:{}", expression);
