@@ -1,19 +1,15 @@
 /**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
+ * Licensed to the Apache Software Foundation (ASF) under one or more contributor license
+ * agreements.  See the NOTICE file distributed with this work for additional information regarding
+ * copyright ownership.  The ASF licenses this file to you under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with the License.  You may obtain
+ * a copy of the License at
  *
- *   http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
+ * Unless required by applicable law or agreed to in writing, software distributed under the License
+ * is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express
+ * or implied.  See the License for the specific language governing permissions and limitations
  * under the License.
  */
 package org.apache.pinot.pql.parsers;
@@ -109,22 +105,26 @@ public class Pql2Compiler implements AbstractCompiler {
       validateHavingClause(rootNode);
 
       BrokerRequest brokerRequest = new BrokerRequest();
-      PinotQuery pinotQuery = new PinotQuery();
       rootNode.updateBrokerRequest(brokerRequest);
-      rootNode.updatePinotQuery(pinotQuery);
-      boolean validate = true;
-      if (validate) {
-        PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
-        BrokerRequest newBrokerRequest = converter.convert(pinotQuery);
-        newBrokerRequest.setQueryOptions(brokerRequest.getQueryOptions());
-        newBrokerRequest.setDebugOptions(brokerRequest.getDebugOptions());
-        boolean result = validate(brokerRequest, newBrokerRequest);
-        if (!result) {
-          LOGGER.error("Pinot query to broker request conversion failed. PQL:{}", expression);
-          throw new Exception("Pinot query to broker request conversion failed");
+      try {
+        PinotQuery pinotQuery = new PinotQuery();
+        rootNode.updatePinotQuery(pinotQuery);
+        boolean validateConverter = true;
+        if (validateConverter) {
+          PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
+          BrokerRequest tempBrokerRequest = converter.convert(pinotQuery);
+          tempBrokerRequest.setQueryOptions(pinotQuery.getQueryOptions());
+          boolean result = validate(brokerRequest, tempBrokerRequest);
+          if (!result) {
+            LOGGER.warn("Pinot query to broker request conversion failed. PQL:{}", expression);
+          }
         }
+        brokerRequest.setPinotQuery(pinotQuery);
+      } catch (Exception e) {
+        //non fatal for now.
+        LOGGER.warn("Non fatal: Failed to populate pinot query and broker request. PQL:{}",
+            expression, e);
       }
-      brokerRequest.setPinotQuery(pinotQuery);
       return brokerRequest;
     } catch (Pql2CompilationException e) {
       throw e;
