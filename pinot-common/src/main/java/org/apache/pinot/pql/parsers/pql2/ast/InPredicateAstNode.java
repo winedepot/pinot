@@ -130,7 +130,7 @@ public class InPredicateAstNode extends PredicateAstNode {
     for (AstNode astNode : getChildren()) {
       if (astNode instanceof LiteralAstNode) {
         LiteralAstNode node = (LiteralAstNode) astNode;
-        expr.getFunctionCall().addToOperands(RequestUtils.getLiteralExpression(node.getValueAsString()));
+        expr.getFunctionCall().addToOperands(RequestUtils.getLiteralExpression(node));
       }
     }
     return expr;

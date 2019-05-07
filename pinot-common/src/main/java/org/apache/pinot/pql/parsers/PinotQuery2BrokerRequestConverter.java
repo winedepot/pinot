@@ -19,7 +19,9 @@
 package org.apache.pinot.pql.parsers;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.pinot.common.request.AggregationInfo;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.Expression;
@@ -29,12 +31,32 @@ import org.apache.pinot.common.request.FilterQuery;
 import org.apache.pinot.common.request.FilterQueryMap;
 import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.GroupBy;
+import org.apache.pinot.common.request.Literal;
 import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.QuerySource;
 import org.apache.pinot.common.request.QueryType;
 import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.pql.parsers.pql2.ast.FilterKind;
 
 public class PinotQuery2BrokerRequestConverter {
+
+  static Map<FilterKind, FilterOperator> filterOperatorMapping;
+
+  static {
+    filterOperatorMapping = new HashMap<>();
+    filterOperatorMapping.put(FilterKind.AND, FilterOperator.AND);
+    filterOperatorMapping.put(FilterKind.OR, FilterOperator.OR);
+    filterOperatorMapping.put(FilterKind.EQUALS, FilterOperator.EQUALITY);
+    filterOperatorMapping.put(FilterKind.NOT_EQUALS, FilterOperator.NOT);
+    filterOperatorMapping.put(FilterKind.GREATER_THAN, FilterOperator.RANGE);
+    filterOperatorMapping.put(FilterKind.LESS_THAN, FilterOperator.RANGE);
+    filterOperatorMapping.put(FilterKind.GREATER_THAN_OR_EQUAL, FilterOperator.RANGE);
+    filterOperatorMapping.put(FilterKind.LESS_THAN_OR_EQUAL, FilterOperator.RANGE);
+    filterOperatorMapping.put(FilterKind.BETWEEN, FilterOperator.RANGE);
+    filterOperatorMapping.put(FilterKind.IN, FilterOperator.IN);
+    filterOperatorMapping.put(FilterKind.NOT_IN, FilterOperator.NOT_IN);
+    filterOperatorMapping.put(FilterKind.REGEXP_LIKE, FilterOperator.REGEXP_LIKE);
+  }
 
   public BrokerRequest convert(PinotQuery pinotQuery) {
     BrokerRequest brokerRequest = new BrokerRequest();
@@ -101,7 +123,7 @@ public class PinotQuery2BrokerRequestConverter {
           if (selection == null) {
             selection = new Selection();
           }
-          selection.addToSelectionColumns(expression.getLiteral().getValue());
+          selection.addToSelectionColumns(expression.getLiteral().getStringValue());
           break;
         case IDENTIFIER:
           if (selection == null) {
@@ -150,10 +172,11 @@ public class PinotQuery2BrokerRequestConverter {
   private String standardizeExpression(Expression expression, boolean treatLiteralAsIdentifier) {
     switch (expression.getType()) {
       case LITERAL:
-        if(treatLiteralAsIdentifier) {
-          return expression.getLiteral().getValue();
+        Literal literal = expression.getLiteral();
+        if (treatLiteralAsIdentifier || !literal.isSetStringValue()) {
+          return literal.getFieldValue().toString();
         } else {
-          return "'" + expression.getLiteral().getValue() + "'";
+          return "'" + literal.getFieldValue() + "'";
         }
       case IDENTIFIER:
         return expression.getIdentifier().getName();
@@ -192,7 +215,7 @@ public class PinotQuery2BrokerRequestConverter {
 
       switch (functionParam.getType()) {
         case LITERAL:
-          columnName = functionParam.getLiteral().getValue();
+          columnName = functionParam.getLiteral().getStringValue();
           break;
         case IDENTIFIER:
           columnName = functionParam.getIdentifier().getName();
@@ -227,7 +250,8 @@ public class PinotQuery2BrokerRequestConverter {
       case FUNCTION:
         Function functionCall = filterExpression.getFunctionCall();
         String operator = functionCall.getOperator();
-        FilterOperator filterOperator = FilterOperator.valueOf(operator);
+        FilterKind filterKind = FilterKind.valueOf(operator);
+        FilterOperator filterOperator = filterOperatorMapping.get(filterKind);
         filterQuery.setOperator(filterOperator);
         List<Expression> operands = functionCall.getOperands();
         switch (filterOperator) {
@@ -240,7 +264,6 @@ public class PinotQuery2BrokerRequestConverter {
             break;
           case EQUALITY:
           case NOT:
-          case RANGE:
           case REGEXP_LIKE:
           case NOT_IN:
           case IN:
@@ -259,6 +282,9 @@ public class PinotQuery2BrokerRequestConverter {
             filterQuery.setColumn(column);
             filterQuery.setValue(valueList);
             break;
+          case RANGE:
+            handleRange(filterQuery, filterKind, operands);
+            break;
           default:
             throw new UnsupportedOperationException("Filter UDF not supported");
         }
@@ -266,5 +292,48 @@ public class PinotQuery2BrokerRequestConverter {
     }
     filterQuery.setNestedFilterQueryIds(childFilterIds);
     return filterQuery;
+  }
+
+  private void handleRange(FilterQuery filterQuery,
+      FilterKind filterKind, List<Expression> operands) {
+
+    filterQuery.setColumn(standardizeExpression(operands.get(0), false));
+
+    String rangeExpression;
+    //PQL does not quote the string literals when we create expression
+    boolean treatLiteralAsIdentifier = true;
+
+    if (FilterKind.LESS_THAN == filterKind) {
+
+      String value = standardizeExpression(operands.get(1), treatLiteralAsIdentifier);
+      rangeExpression = "(*\t\t" + value + ")";
+
+    } else if (FilterKind.LESS_THAN_OR_EQUAL == filterKind) {
+
+      String value = standardizeExpression(operands.get(1), treatLiteralAsIdentifier);
+      rangeExpression = "(*\t\t" + value + "]";
+
+    } else if (FilterKind.GREATER_THAN == filterKind) {
+
+      String value = standardizeExpression(operands.get(1), treatLiteralAsIdentifier);
+      rangeExpression = "(" + value + "\t\t*)";
+
+    } else if (FilterKind.GREATER_THAN_OR_EQUAL == filterKind) {
+
+      String value = standardizeExpression(operands.get(1), treatLiteralAsIdentifier);
+      rangeExpression = "[" + value + "\t\t*)";
+
+    } else if (FilterKind.BETWEEN == filterKind) {
+
+      String left = standardizeExpression(operands.get(1), treatLiteralAsIdentifier);
+      String right = standardizeExpression(operands.get(2), treatLiteralAsIdentifier);
+      rangeExpression = "[" + left + "\t\t" + right + "]";
+
+    } else {
+      throw new UnsupportedOperationException("Unknown Filter Kind:" + filterKind);
+    }
+    List<String> valueList = new ArrayList<>();
+    valueList.add(rangeExpression);
+    filterQuery.setValue(valueList);
   }
 }

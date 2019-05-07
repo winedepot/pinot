@@ -120,7 +120,7 @@ public class TransformExpressionTree {
       }
       return expression;
     } else if (astNode instanceof LiteralAstNode) {
-      return RequestUtils.getLiteralExpression(((LiteralAstNode) astNode).getValueAsString());
+      return RequestUtils.getLiteralExpression(((LiteralAstNode) astNode));
     } else if (astNode instanceof PredicateAstNode) {
       return ((PredicateAstNode) astNode).buildFilterExpression();
     } else {

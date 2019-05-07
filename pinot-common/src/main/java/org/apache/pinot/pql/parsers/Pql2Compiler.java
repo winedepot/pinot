@@ -18,7 +18,6 @@
  */
 package org.apache.pinot.pql.parsers;
 
-import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
@@ -52,6 +51,8 @@ import org.apache.pinot.pql.parsers.pql2.ast.HavingAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.InPredicateAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.OutputColumnAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.RegexpLikePredicateAstNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -59,6 +60,8 @@ import org.apache.pinot.pql.parsers.pql2.ast.RegexpLikePredicateAstNode;
  */
 @ThreadSafe
 public class Pql2Compiler implements AbstractCompiler {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(Pql2Compiler.class);
 
   private static class ErrorListener extends BaseErrorListener {
 
@@ -117,7 +120,8 @@ public class Pql2Compiler implements AbstractCompiler {
         newBrokerRequest.setDebugOptions(brokerRequest.getDebugOptions());
         boolean result = validate(brokerRequest, newBrokerRequest);
         if (!result) {
-          throw new Exception("Pinot query to broker request conversion failed");
+          LOGGER.error("Pinot query to broker request conversion failed. PQL:{}", expression);
+          //throw new Exception("Pinot query to broker request conversion failed");
         }
       }
       brokerRequest.setPinotQuery(pinotQuery);
@@ -142,27 +146,31 @@ public class Pql2Compiler implements AbstractCompiler {
         if (!br1.getFilterQuery().equals(br2.getFilterQuery())) {
           sb.append("br1.getFilterQuery() = ").append(br1.getFilterQuery()).append("\n")
               .append("br2.getFilterQuery() = ").append(br2.getFilterQuery());
-          throw new Exception("Filter did not match after conversion." + sb);
+          LOGGER.error("Filter did not match after conversion.{}", sb);
+          return false;
         }
 
         if (!br1.getFilterSubQueryMap().equals(br2.getFilterSubQueryMap())) {
           sb.append("br1.getFilterSubQueryMap() = ").append(br1.getFilterSubQueryMap()).append("\n")
               .append("br2.getFilterSubQueryMap() = ").append(br2.getFilterSubQueryMap());
-          throw new Exception("FilterSubQueryMap did not match after conversion." + sb);
+          LOGGER.error("FilterSubQueryMap did not match after conversion. {}", sb);
+          return false;
         }
       }
       if (br1.getSelections() != null) {
         if (!br1.getSelections().equals(br2.getSelections())) {
           sb.append("br1.getSelections() = ").append(br1.getSelections()).append("\n")
               .append("br2.getSelections() = ").append(br2.getSelections());
-          throw new Exception("Selection did not match after conversion");
+          LOGGER.error("Selection did not match after conversion:{}", sb);
+          return false;
         }
       }
       if (br1.getGroupBy() != null) {
         if (!br1.getGroupBy().equals(br2.getGroupBy())) {
           sb.append("br1.getGroupBy() = ").append(br1.getGroupBy()).append("\n")
               .append("br2.getGroupBy() = ").append(br2.getGroupBy());
-          throw new Exception("Group By did not match conversion.");
+          LOGGER.error("Group By did not match conversion:{}", sb);
+          return false;
         }
       }
       if (br1.getAggregationsInfo() != null) {
@@ -173,7 +181,8 @@ public class Pql2Compiler implements AbstractCompiler {
           if (!agg1.equals(agg2)) {
             sb.append("br1.agg1 = ").append(agg1).append("\n")
                 .append("br2.agg2() = ").append(agg2);
-            throw new Exception("AggregationInfo did not match after conversion"+ sb);
+            LOGGER.error("AggregationInfo did not match after conversion: {}", sb);
+            return false;
           }
         }
       }

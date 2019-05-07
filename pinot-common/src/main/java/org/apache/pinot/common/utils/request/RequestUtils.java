@@ -42,7 +42,11 @@ import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
+import org.apache.pinot.pql.parsers.pql2.ast.FloatingPointLiteralAstNode;
+import org.apache.pinot.pql.parsers.pql2.ast.IntegerLiteralAstNode;
+import org.apache.pinot.pql.parsers.pql2.ast.LiteralAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.PredicateAstNode;
+import org.apache.pinot.pql.parsers.pql2.ast.StringLiteralAstNode;
 
 
 public class RequestUtils {
@@ -73,9 +77,19 @@ public class RequestUtils {
     return expression;
   }
 
-  public static Expression getLiteralExpression(String literal) {
+  public static Expression getLiteralExpression(LiteralAstNode value) {
     Expression expression = new Expression(ExpressionType.LITERAL);
-    expression.setLiteral(new Literal(literal));
+    Literal literal = new Literal();
+    if(value instanceof StringLiteralAstNode) {
+      literal.setStringValue(((StringLiteralAstNode)value).getText());
+    }
+    if(value instanceof IntegerLiteralAstNode) {
+      literal.setLongValue(((IntegerLiteralAstNode)value).getValue());
+    }
+    if(value instanceof FloatingPointLiteralAstNode) {
+      literal.setDoubleValue(((FloatingPointLiteralAstNode)value).getValue());
+    }
+    expression.setLiteral(literal);
     return expression;
   }
 
