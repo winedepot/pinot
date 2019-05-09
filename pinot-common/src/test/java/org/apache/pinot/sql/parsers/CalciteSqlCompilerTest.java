@@ -20,9 +20,12 @@ package org.apache.pinot.sql.parsers;
 
 import java.util.List;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.Expression;
+import org.apache.pinot.common.request.FilterOperator;
 import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.PinotQuery;
+import org.apache.pinot.pql.parsers.PinotQuery2BrokerRequestConverter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -96,6 +99,38 @@ public class CalciteSqlCompilerTest {
     Assert.assertEquals(func.getOperator(), SqlKind.LIKE.name());
     Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "F");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "'%potato%'");
+    pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where g IN (12, 13, 15.2, 17)");
+    func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "G");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 12L);
+    Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 13L);
+    Assert.assertEquals(func.getOperands().get(3).getLiteral().getDoubleValue(), 15.2);
+    Assert.assertEquals(func.getOperands().get(4).getLiteral().getLongValue(), 17L);
+  }
+
+  @Test
+  public void testBrokerConverter() {
+    PinotQuery pinotQuery =
+        CalciteSqlParser.compileToPinotQuery("select * from vegetables where g IN (12, 13, 15.2, 17)");
+    Function func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "G");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 12L);
+    Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 13L);
+    Assert.assertEquals(func.getOperands().get(3).getLiteral().getDoubleValue(), 15.2);
+    Assert.assertEquals(func.getOperands().get(4).getLiteral().getLongValue(), 17L);
+    PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
+    BrokerRequest tempBrokerRequest = converter.convert(pinotQuery);
+    Assert.assertEquals(tempBrokerRequest.getQuerySource().getTableName(), "VEGETABLES");
+    Assert.assertEquals(tempBrokerRequest.getSelections().getSelectionColumns().get(0), "*");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getOperator(), FilterOperator.IN);
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getColumn(), "G");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().size(), 4);
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(0), "12");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(1), "13");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(2), "15.2");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(3), "17");
   }
 
   @Test
