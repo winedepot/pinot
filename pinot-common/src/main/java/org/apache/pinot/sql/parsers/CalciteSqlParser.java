@@ -206,7 +206,7 @@ public class CalciteSqlParser {
         }
         return RequestUtils.getIdentifierExpression(node.toString());
       case LITERAL:
-        return RequestUtils.getLiteralExpression(((SqlLiteral) node).getValue().toString());
+        return RequestUtils.getLiteralExpression((SqlLiteral) node);
       case AS:
         // Aggregation
       case COUNT:

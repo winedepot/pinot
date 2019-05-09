@@ -26,9 +26,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
-import org.apache.commons.lang.StringUtils;
+import org.apache.calcite.sql.SqlLiteral;
+import org.apache.calcite.sql.SqlNumericLiteral;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.commons.math3.analysis.function.Exp;
 import org.apache.pinot.common.request.BrokerRequest;
 import org.apache.pinot.common.request.Expression;
 import org.apache.pinot.common.request.ExpressionType;
@@ -39,14 +39,12 @@ import org.apache.pinot.common.request.HavingFilterQuery;
 import org.apache.pinot.common.request.HavingFilterQueryMap;
 import org.apache.pinot.common.request.Identifier;
 import org.apache.pinot.common.request.Literal;
-import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.pql.parsers.pql2.ast.FloatingPointLiteralAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.IntegerLiteralAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.LiteralAstNode;
-import org.apache.pinot.pql.parsers.pql2.ast.PredicateAstNode;
 import org.apache.pinot.pql.parsers.pql2.ast.StringLiteralAstNode;
 
 
@@ -81,19 +79,34 @@ public class RequestUtils {
   public static Expression getLiteralExpression(LiteralAstNode value) {
     Expression expression = new Expression(ExpressionType.LITERAL);
     Literal literal = new Literal();
-    if(value instanceof StringLiteralAstNode) {
-      literal.setStringValue(((StringLiteralAstNode)value).getText());
+    if (value instanceof StringLiteralAstNode) {
+      literal.setStringValue(((StringLiteralAstNode) value).getText());
     }
-    if(value instanceof IntegerLiteralAstNode) {
-      literal.setLongValue(((IntegerLiteralAstNode)value).getValue());
+    if (value instanceof IntegerLiteralAstNode) {
+      literal.setLongValue(((IntegerLiteralAstNode) value).getValue());
     }
-    if(value instanceof FloatingPointLiteralAstNode) {
-      literal.setDoubleValue(((FloatingPointLiteralAstNode)value).getValue());
+    if (value instanceof FloatingPointLiteralAstNode) {
+      literal.setDoubleValue(((FloatingPointLiteralAstNode) value).getValue());
     }
     expression.setLiteral(literal);
     return expression;
   }
 
+  public static Expression getLiteralExpression(SqlLiteral node) {
+    Expression expression = new Expression(ExpressionType.LITERAL);
+    Literal literal = new Literal();
+    if (node instanceof SqlNumericLiteral) {
+      if (((SqlNumericLiteral) node).isInteger()) {
+        literal.setLongValue(node.bigDecimalValue().longValue());
+      } else {
+        literal.setDoubleValue(node.bigDecimalValue().doubleValue());
+      }
+    } else {
+      literal.setStringValue(node.toString());
+    }
+    expression.setLiteral(literal);
+    return expression;
+  }
 
   public static Expression getLiteralExpression(String value) {
     Expression expression = new Expression(ExpressionType.LITERAL);
