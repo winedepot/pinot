@@ -134,6 +134,31 @@ public class CalciteSqlCompilerTest {
   }
 
   @Test
+  public void testSelectAs() {
+    PinotQuery pinotQuery = CalciteSqlParser.compileToPinotQuery(
+        "select sum(A) as sum_A, count(B) as count_B  from vegetables where g IN (12, 13, 15.2, 17)");
+    Function func = pinotQuery.getFilterExpression().getFunctionCall();
+    Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "G");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 12L);
+    Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 13L);
+    Assert.assertEquals(func.getOperands().get(3).getLiteral().getDoubleValue(), 15.2);
+    Assert.assertEquals(func.getOperands().get(4).getLiteral().getLongValue(), 17L);
+    PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
+    BrokerRequest tempBrokerRequest = converter.convert(pinotQuery);
+    Assert.assertEquals(tempBrokerRequest.getQuerySource().getTableName(), "VEGETABLES");
+    Assert.assertNull(tempBrokerRequest.getSelections());
+    Assert.assertEquals(tempBrokerRequest.getAggregationsInfo().get(0).getAggregationType(), "SUM");
+    Assert.assertEquals(tempBrokerRequest.getAggregationsInfo().get(1).getAggregationType(), "COUNT");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getColumn(), "G");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().size(), 4);
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(0), "12");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(1), "13");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(2), "15.2");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(3), "17");
+  }
+
+  @Test
   public void testDuplicateClauses() {
     assertCompilationFails("select top 5 count(*) from a top 8");
     assertCompilationFails("select count(*) from a where a = 1 limit 5 where b = 2");

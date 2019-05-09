@@ -141,7 +141,9 @@ public class PinotQuery2BrokerRequestConverter {
           selection.addToSelectionColumns(expression.getIdentifier().getName());
           break;
         case FUNCTION:
-
+          if (expression.getFunctionCall().getOperator().equalsIgnoreCase("AS")) {
+            expression = expression.getFunctionCall().getOperands().get(0);
+          }
           Function functionCall = expression.getFunctionCall();
           String functionName = functionCall.getOperator();
           if(FunctionDefinitionRegistry.isAggFunc(functionName)) {
