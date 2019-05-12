@@ -19,6 +19,7 @@
 package org.apache.pinot.core.operator.query;
 
 import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -30,6 +31,7 @@ import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
 import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.utils.DataSchema;
+import org.apache.pinot.common.utils.primitive.ByteArray;
 import org.apache.pinot.core.common.BlockValSet;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.operator.BaseOperator;
@@ -170,6 +172,7 @@ public class SelectionOperator extends BaseOperator<IntermediateResultsBlock> {
                 ret = ((Double) v2).compareTo((Double) v1);
               }
               break;
+            case BOOLEAN:
             case STRING:
               if (!selectionSort.isIsAsc()) {
                 ret = ((String) v1).compareTo((String) v2);
@@ -177,6 +180,12 @@ public class SelectionOperator extends BaseOperator<IntermediateResultsBlock> {
                 ret = ((String) v2).compareTo((String) v1);
               }
               break;
+            case BYTES:
+              if (!selectionSort.isIsAsc()) {
+                ret = ByteArray.compare((byte[]) v1, (byte[]) v2);
+              } else {
+                ret = ByteArray.compare((byte[]) v2, (byte[]) v1);
+              }
             default:
               break;
           }
