@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 import javax.annotation.Nonnull;
@@ -279,7 +280,34 @@ public class AvroUtils {
     for (FieldSpec fieldSpec : schema.getAllFieldSpecs()) {
       String fieldName = fieldSpec.getName();
       Object avroValue = from.get(fieldName);
-      if (fieldSpec.isSingleValueField()) {
+      //Handle MAP types
+      if (fieldName.toUpperCase().endsWith("__KEYS")) {
+        String avroFieldName = fieldName.replaceAll("__KEYS", "");
+        Object o = from.get(avroFieldName);
+        if (o instanceof Map) {
+          Map map = (Map) o;
+          TreeSet sortedKeySet = new TreeSet<>(map.keySet());
+          Object[] keys = new Object[map.size()];
+          int i = 0;
+          for (Object key : sortedKeySet) {
+            keys[i++] = AvroUtils.transformAvroValueToObject(key, fieldSpec);
+          }
+          to.putField(fieldName, keys);
+        }
+      } else if (fieldName.toUpperCase().endsWith("__VALUES")) {
+        String avroFieldName = fieldName.replaceAll("__VALUES", "");
+        Object o = from.get(avroFieldName);
+        if (o instanceof Map) {
+          Map map = (Map) o;
+          TreeSet sortedKeySet = new TreeSet<>(map.keySet());
+          Object[] values = new Object[map.size()];
+          int i = 0;
+          for (Object key : sortedKeySet) {
+            values[i++] = AvroUtils.transformAvroValueToObject(map.get(key), fieldSpec);
+          }
+          to.putField(fieldName, values);
+        }
+      } else if (fieldSpec.isSingleValueField()) {
         to.putField(fieldName, transformAvroValueToObject(avroValue, fieldSpec));
       } else {
         to.putField(fieldName, transformAvroArrayToObjectArray((GenericData.Array) avroValue, fieldSpec));

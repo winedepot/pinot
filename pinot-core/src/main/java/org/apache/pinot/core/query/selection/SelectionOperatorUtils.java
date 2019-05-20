@@ -37,6 +37,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.apache.pinot.common.request.Selection;
 import org.apache.pinot.common.request.SelectionSort;
+import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.response.ServerInstance;
 import org.apache.pinot.common.response.broker.SelectionResults;
 import org.apache.pinot.common.utils.DataSchema;
@@ -89,10 +90,21 @@ public class SelectionOperatorUtils {
     if (selectionColumns.size() == 1 && selectionColumns.get(0).equals("*")) {
       List<String> allColumns = new LinkedList<>(indexSegment.getPhysicalColumnNames());
       Collections.sort(allColumns);
-      return allColumns;
+      return standardizeExpressions(allColumns);
     } else {
-      return selectionColumns;
+      return standardizeExpressions(selectionColumns);
     }
+
+  }
+
+  private static List<String> standardizeExpressions(List<String> columns) {
+    List selectionExpressions = new ArrayList();
+    for (String selectionColumn : columns) {
+      TransformExpressionTree expressionTree = TransformExpressionTree
+          .compileToExpressionTree(selectionColumn);
+      selectionExpressions.add(expressionTree.toString());
+    }
+    return selectionExpressions;
   }
 
   /**
@@ -458,6 +470,7 @@ public class SelectionOperatorUtils {
    */
   public static int[] getColumnIndicesWithOrdering(@Nonnull List<String> selectionColumns,
       @Nonnull DataSchema dataSchema) {
+    selectionColumns = standardizeExpressions(selectionColumns);
     int numSelectionColumns = selectionColumns.size();
     int[] columnIndices = new int[numSelectionColumns];
     int numColumnsInDataSchema = dataSchema.size();

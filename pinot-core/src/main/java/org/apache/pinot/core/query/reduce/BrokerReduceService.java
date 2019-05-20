@@ -39,6 +39,7 @@ import org.apache.pinot.common.request.GroupBy;
 import org.apache.pinot.common.request.HavingFilterQuery;
 import org.apache.pinot.common.request.HavingFilterQueryMap;
 import org.apache.pinot.common.request.Selection;
+import org.apache.pinot.common.request.transform.TransformExpressionTree;
 import org.apache.pinot.common.response.ServerInstance;
 import org.apache.pinot.common.response.broker.AggregationResult;
 import org.apache.pinot.common.response.broker.BrokerResponseNative;
@@ -289,17 +290,23 @@ public class BrokerReduceService implements ReduceService<BrokerResponseNative> 
     int[] columnIndices;
     List<String> selectionColumns =
         SelectionOperatorUtils.getSelectionColumns(selection.getSelectionColumns(), dataSchema);
+    List<String> selectionExpressions = new ArrayList<>();
+    for (String selectionColumn : selectionColumns) {
+      TransformExpressionTree expressionTree = TransformExpressionTree
+          .compileToExpressionTree(selectionColumn);
+      selectionExpressions.add(expressionTree.toString());
+    }
     if (selection.isSetSelectionSortSequence() && selectionSize != 0) {
       // Selection order-by.
       SelectionOperatorService selectionService = new SelectionOperatorService(selection, dataSchema);
       selectionService.reduceWithOrdering(dataTableMap);
       selectionResults = selectionService.renderSelectionResultsWithOrdering();
-      columnIndices = SelectionOperatorUtils.getColumnIndicesWithOrdering(selectionColumns, dataSchema);
+      columnIndices = SelectionOperatorUtils.getColumnIndicesWithOrdering(selectionExpressions, dataSchema);
     } else {
       // Selection only.
       selectionResults = SelectionOperatorUtils.renderSelectionResultsWithoutOrdering(
-          SelectionOperatorUtils.reduceWithoutOrdering(dataTableMap, selectionSize), dataSchema, selectionColumns);
-      columnIndices = SelectionOperatorUtils.getColumnIndicesWithoutOrdering(selectionColumns, dataSchema);
+          SelectionOperatorUtils.reduceWithoutOrdering(dataTableMap, selectionSize), dataSchema, selectionExpressions);
+      columnIndices = SelectionOperatorUtils.getColumnIndicesWithoutOrdering(selectionExpressions, dataSchema);
     }
 
     // TODO: use "formatRowsWithoutOrdering", "formatRowsWithOrdering" properly for selection when the server is updated
