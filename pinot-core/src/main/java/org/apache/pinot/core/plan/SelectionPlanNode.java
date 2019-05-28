@@ -38,7 +38,8 @@ import org.slf4j.LoggerFactory;
 public class SelectionPlanNode implements PlanNode {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(SelectionPlanNode.class);
-  public static boolean enableUDFInSelection = false;
+  //temporary
+  public static boolean enableUDFInSelection = Boolean.valueOf(System.getProperty("enableUDFInSelection"));
   private final IndexSegment _indexSegment;
   private final Selection _selection;
   private TransformPlanNode _transformPlanNode;
