@@ -251,7 +251,31 @@ public class ExpressionFilterOperator extends BaseFilterOperator {
 
       @Override
       public int advance(int targetDocId) {
-        return 0;
+        if (_currentDocId == Constants.EOF) {
+          return _currentDocId;
+        }
+        if (targetDocId < _startDocId) {
+          targetDocId = _startDocId;
+        } else if (targetDocId > _endDocId) {
+          _currentDocId = Constants.EOF;
+          return _currentDocId;
+        }
+        if(targetDocId >= _currentBlockStartDocId && targetDocId < _currentBlockEndDocId) {
+          if(_currentDocId == targetDocId) {
+            return _currentDocId;
+          }
+          while(_intIterator.hasNext()) {
+            _currentDocId = _intIterator.next();
+            if(_currentDocId >= targetDocId) {
+              return _currentDocId;
+            }
+          }
+        }
+        //cannot find targetDocId in the current block. start searching on a new block that starts from targetDocId
+        //TODO: Consider lowering the block size for advance scenario for e.g. use 1k blocks instead of 10k
+        _currentBlockEndDocId = targetDocId;
+        _intIterator = null;
+        return next();
       }
 
       @Override
@@ -287,50 +311,59 @@ public class ExpressionFilterOperator extends BaseFilterOperator {
           int length = docIdSetBlock.getSearchableLength();
           _numDocsScanned += length;
           BlockValSet blockValueSet = transformBlock.getBlockValueSet(_expressionFilterOperator._expression);
-          switch (_expressionFilterOperator._resultMetadata.getDataType()) {
-            case INT:
-              int[] intValuesSV = blockValueSet.getIntValuesSV();
-              for (int i = 0; i < length; i++) {
-                if (_expressionFilterOperator._predicateEvaluator.applySV(intValuesSV[i])) {
-                  bitmap.add(docIdSet[i]);
-                }
+          if(_expressionFilterOperator._resultMetadata.hasDictionary()) {
+            int[] dictionaryIdsSV = blockValueSet.getDictionaryIdsSV();
+            for (int i = 0; i < length; i++) {
+              if (_expressionFilterOperator._predicateEvaluator.applySV(dictionaryIdsSV[i])) {
+                bitmap.add(docIdSet[i]);
               }
-              break;
-            case LONG:
-              long[] longValuesSV = blockValueSet.getLongValuesSV();
-              for (int i = 0; i < length; i++) {
-                if (_expressionFilterOperator._predicateEvaluator.applySV(longValuesSV[i])) {
-                  bitmap.add(docIdSet[i]);
+            }
+          } else {
+            switch (_expressionFilterOperator._resultMetadata.getDataType()) {
+              case INT:
+                int[] intValuesSV = blockValueSet.getIntValuesSV();
+                for (int i = 0; i < length; i++) {
+                  if (_expressionFilterOperator._predicateEvaluator.applySV(intValuesSV[i])) {
+                    bitmap.add(docIdSet[i]);
+                  }
                 }
-              }
-              break;
-            case FLOAT:
-              float[] floatValuesSV = blockValueSet.getFloatValuesSV();
-              for (int i = 0; i < length; i++) {
-                if (_expressionFilterOperator._predicateEvaluator.applySV(floatValuesSV[i])) {
-                  bitmap.add(docIdSet[i]);
+                break;
+              case LONG:
+                long[] longValuesSV = blockValueSet.getLongValuesSV();
+                for (int i = 0; i < length; i++) {
+                  if (_expressionFilterOperator._predicateEvaluator.applySV(longValuesSV[i])) {
+                    bitmap.add(docIdSet[i]);
+                  }
                 }
-              }
-              break;
-            case DOUBLE:
-              double[] doubleValuesSV = blockValueSet.getDoubleValuesSV();
-              for (int i = 0; i < length; i++) {
-                if (_expressionFilterOperator._predicateEvaluator.applySV(doubleValuesSV[i])) {
-                  bitmap.add(docIdSet[i]);
+                break;
+              case FLOAT:
+                float[] floatValuesSV = blockValueSet.getFloatValuesSV();
+                for (int i = 0; i < length; i++) {
+                  if (_expressionFilterOperator._predicateEvaluator.applySV(floatValuesSV[i])) {
+                    bitmap.add(docIdSet[i]);
+                  }
                 }
-              }
-              break;
-            case BOOLEAN:
-            case STRING:
-              String[] stringValuesSV = blockValueSet.getStringValuesSV();
-              for (int i = 0; i < length; i++) {
-                if (_expressionFilterOperator._predicateEvaluator.applySV(stringValuesSV[i])) {
-                  bitmap.add(docIdSet[i]);
+                break;
+              case DOUBLE:
+                double[] doubleValuesSV = blockValueSet.getDoubleValuesSV();
+                for (int i = 0; i < length; i++) {
+                  if (_expressionFilterOperator._predicateEvaluator.applySV(doubleValuesSV[i])) {
+                    bitmap.add(docIdSet[i]);
+                  }
                 }
-              }
-              break;
-            case BYTES:
-              throw new UnsupportedOperationException("Applying filter on bytes column is not supported (yet)");
+                break;
+              case BOOLEAN:
+              case STRING:
+                String[] stringValuesSV = blockValueSet.getStringValuesSV();
+                for (int i = 0; i < length; i++) {
+                  if (_expressionFilterOperator._predicateEvaluator.applySV(stringValuesSV[i])) {
+                    bitmap.add(docIdSet[i]);
+                  }
+                }
+                break;
+              case BYTES:
+                throw new UnsupportedOperationException("Applying filter on bytes column is not supported (yet)");
+            }
           }
         }
         return bitmap;

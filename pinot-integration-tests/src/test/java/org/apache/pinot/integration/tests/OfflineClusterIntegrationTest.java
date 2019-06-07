@@ -542,13 +542,35 @@ public class OfflineClusterIntegrationTest extends BaseClusterIntegrationTestSet
     }
     SelectionPlanNode.enableUDFInSelection = false;
   }
+
   @Test
   public void testFilterUDF()
       throws Exception {
-    String pqlQuery = "SELECT count(*) FROM mytable WHERE timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = 1409443200";
-    JsonNode response = postQuery(pqlQuery);
-    System.out.println("response = " + response);
+    int daysSinceEpoch = 16138;
+    long secondsSinceEpoch = 16138 * 24 * 60 * 60;
+
+    String pqlQuery;
+    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch;
+    JsonNode response1 = postQuery(pqlQuery);
+
+    pqlQuery = "SELECT count(*) FROM mytable WHERE timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
+    JsonNode response2 = postQuery(pqlQuery);
+
+    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch + "OR timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
+    JsonNode response3 = postQuery(pqlQuery);
+
+    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch + "AND timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
+    JsonNode response4 = postQuery(pqlQuery);
+
+    double val1 = response1.get("aggregationResults").get(0).get("value").asDouble();
+    double val2 = response2.get("aggregationResults").get(0).get("value").asDouble();
+    double val3 = response3.get("aggregationResults").get(0).get("value").asDouble();
+    double val4 = response4.get("aggregationResults").get(0).get("value").asDouble();
+    Assert.assertEquals(val1, val2);
+    Assert.assertEquals(val1, val3);
+//    Assert.assertEquals(val1, val4);
   }
+
   @AfterClass
   public void tearDown()
       throws Exception {
