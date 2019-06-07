@@ -542,7 +542,13 @@ public class OfflineClusterIntegrationTest extends BaseClusterIntegrationTestSet
     }
     SelectionPlanNode.enableUDFInSelection = false;
   }
-
+  @Test
+  public void testFilterUDF()
+      throws Exception {
+    String pqlQuery = "SELECT count(*) FROM mytable WHERE timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = 1409443200";
+    JsonNode response = postQuery(pqlQuery);
+    System.out.println("response = " + response);
+  }
   @AfterClass
   public void tearDown()
       throws Exception {
