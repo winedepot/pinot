@@ -556,10 +556,10 @@ public class OfflineClusterIntegrationTest extends BaseClusterIntegrationTestSet
     pqlQuery = "SELECT count(*) FROM mytable WHERE timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
     JsonNode response2 = postQuery(pqlQuery);
 
-    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch + "OR timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
+    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch + " OR timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
     JsonNode response3 = postQuery(pqlQuery);
 
-    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch + "AND timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
+    pqlQuery = "SELECT count(*) FROM mytable WHERE DaysSinceEpoch = " + daysSinceEpoch + " AND timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
     JsonNode response4 = postQuery(pqlQuery);
 
     double val1 = response1.get("aggregationResults").get(0).get("value").asDouble();
@@ -568,7 +568,7 @@ public class OfflineClusterIntegrationTest extends BaseClusterIntegrationTestSet
     double val4 = response4.get("aggregationResults").get(0).get("value").asDouble();
     Assert.assertEquals(val1, val2);
     Assert.assertEquals(val1, val3);
-//    Assert.assertEquals(val1, val4);
+    Assert.assertEquals(val1, val4);
   }
 
   @AfterClass
