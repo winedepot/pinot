@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableList;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -41,7 +40,6 @@ import org.apache.pinot.common.utils.ServiceStatus;
 import org.apache.pinot.core.indexsegment.generator.SegmentVersion;
 import org.apache.pinot.core.plan.SelectionPlanNode;
 import org.apache.pinot.util.TestUtils;
-import org.joda.time.DateTime;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -569,6 +567,31 @@ public class OfflineClusterIntegrationTest extends BaseClusterIntegrationTestSet
     Assert.assertEquals(val1, val2);
     Assert.assertEquals(val1, val3);
     Assert.assertEquals(val1, val4);
+  }
+
+  @Test
+  public void testFilterWithInvertedIndexUDF()
+      throws Exception {
+    int daysSinceEpoch = 16138;
+    long secondsSinceEpoch = 16138 * 24 * 60 * 60;
+
+    String[] origins =
+        new String[]{"ATL", "ORD", "DFW", "DEN", "LAX", "IAH", "SFO", "PHX", "LAS", "EWR", "MCO", "BOS", "SLC", "SEA", "MSP", "CLT", "LGA", "DTW", "JFK", "BWI"};
+    String pqlQuery;
+    for (String origin : origins) {
+      pqlQuery =
+          "SELECT count(*) FROM mytable WHERE Origin = \"" + origin + "\" AND DaysSinceEpoch = " + daysSinceEpoch;
+      JsonNode response1 = postQuery(pqlQuery);
+      //System.out.println(response1);
+      pqlQuery = "SELECT count(*) FROM mytable WHERE Origin = \"" + origin
+          + "\" AND timeConvert(DaysSinceEpoch,'DAYS','SECONDS') = " + secondsSinceEpoch;
+      JsonNode response2 = postQuery(pqlQuery);
+      //System.out.println(response2);
+      double val1 = response1.get("aggregationResults").get(0).get("value").asDouble();
+      double val2 = response2.get("aggregationResults").get(0).get("value").asDouble();
+      Assert.assertEquals(val1, val2);
+    }
+
   }
 
   @AfterClass

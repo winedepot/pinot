@@ -285,7 +285,10 @@ public class ExpressionFilterOperator extends BaseFilterOperator {
 
       @Override
       public boolean isMatch(int docId) {
-        return false;
+        final MutableRoaringBitmap docIdBitmap = new MutableRoaringBitmap();
+        docIdBitmap.add(docId);
+        final MutableRoaringBitmap evaluate = evaluate(docIdBitmap);
+        return evaluate.getCardinality() > 0;
       }
 
       @Override
