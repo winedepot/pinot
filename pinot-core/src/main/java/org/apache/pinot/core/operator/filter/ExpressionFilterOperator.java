@@ -108,27 +108,28 @@ public class ExpressionFilterOperator extends BaseFilterOperator {
       return new FilterBlock(new FilterBlockDocIdSet() {
         @Override
         public int getMinDocId() {
-          return 0;
+          throw new UnsupportedOperationException("This filter block should be used to iterate over a bitmap");
         }
 
         @Override
         public int getMaxDocId() {
-          return 0;
+          throw new UnsupportedOperationException("This filter block should be used to iterate over a bitmap");
+
         }
 
         @Override
         public void setStartDocId(int startDocId) {
-
+          throw new UnsupportedOperationException("This filter block should be used to iterate over a bitmap");
         }
 
         @Override
         public void setEndDocId(int endDocId) {
-
+          throw new UnsupportedOperationException("This filter block should be used to iterate over a bitmap");
         }
 
         @Override
         public long getNumEntriesScannedInFilter() {
-          return 0;
+          throw new UnsupportedOperationException("This filter block should be used to iterate over a bitmap");
         }
 
         @Override
@@ -145,7 +146,7 @@ public class ExpressionFilterOperator extends BaseFilterOperator {
 
     @Override
     public String getOperatorName() {
-      return null;
+      return BitmapWrappedFilterOperator.class.getName();
     }
   }
 
@@ -295,7 +296,6 @@ public class ExpressionFilterOperator extends BaseFilterOperator {
       public MutableRoaringBitmap applyAnd(MutableRoaringBitmap answer) {
         MutableRoaringBitmap bitmap = evaluate(answer);
         answer.and(bitmap);
-        bitmap.toArray();
         return answer;
       }
 
