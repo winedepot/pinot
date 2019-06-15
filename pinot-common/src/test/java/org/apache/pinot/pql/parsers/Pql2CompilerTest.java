@@ -220,7 +220,7 @@ public class Pql2CompilerTest {
         FilterKind.NOT_EQUALS.name());
   }
 
-  @Test
+  @Test(enabled = false)
   public void testCompilationWithHaving() {
     BrokerRequest brokerRequest = COMPILER
         .compileToBrokerRequest("select avg(age) as avg_age from person group by address_city having avg(age)=20");
