@@ -72,43 +72,43 @@ public class CalciteSqlCompilerTest {
     PinotQuery pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where a > 1.5");
     Function func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.GREATER_THAN.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "A");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "a");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getDoubleValue(), 1.5);
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where b < 100");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.LESS_THAN.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "B");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "b");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 100L);
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where c >= 10");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.GREATER_THAN_OR_EQUAL.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "C");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "c");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 10L);
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where d <= 50");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.LESS_THAN_OR_EQUAL.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "D");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "d");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 50L);
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where e BETWEEN 70 AND 80");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.BETWEEN.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "E");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "e");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 70L);
     Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 80L);
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where regexp_like(E, '^U.*')");
     func = pinotQuery.getFilterExpression().getFunctionCall();
-    Assert.assertEquals(func.getOperator(), "REGEXP_LIKE");
+    Assert.assertEquals(func.getOperator(), "regexp_like");
     Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "E");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "^U.*");
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where f LIKE '%potato%'");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.LIKE.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "F");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "f");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "%potato%");
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where g IN (12, 13, 15.2, 17)");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "G");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "g");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 12L);
     Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 13L);
     Assert.assertEquals(func.getOperands().get(3).getLiteral().getDoubleValue(), 15.2);
@@ -121,17 +121,17 @@ public class CalciteSqlCompilerTest {
         CalciteSqlParser.compileToPinotQuery("select * from vegetables where g IN (12, 13, 15.2, 17)");
     Function func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "G");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "g");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 12L);
     Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 13L);
     Assert.assertEquals(func.getOperands().get(3).getLiteral().getDoubleValue(), 15.2);
     Assert.assertEquals(func.getOperands().get(4).getLiteral().getLongValue(), 17L);
     PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
     BrokerRequest tempBrokerRequest = converter.convert(pinotQuery);
-    Assert.assertEquals(tempBrokerRequest.getQuerySource().getTableName(), "VEGETABLES");
+    Assert.assertEquals(tempBrokerRequest.getQuerySource().getTableName(), "vegetables");
     Assert.assertEquals(tempBrokerRequest.getSelections().getSelectionColumns().get(0), "*");
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getOperator(), FilterOperator.IN);
-    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getColumn(), "G");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getColumn(), "g");
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().size(), 4);
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(0), "12");
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(1), "13");
@@ -145,18 +145,18 @@ public class CalciteSqlCompilerTest {
         "select sum(A) as sum_A, count(B) as count_B  from vegetables where g IN (12, 13, 15.2, 17)");
     Function func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
-    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "G");
+    Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "g");
     Assert.assertEquals(func.getOperands().get(1).getLiteral().getLongValue(), 12L);
     Assert.assertEquals(func.getOperands().get(2).getLiteral().getLongValue(), 13L);
     Assert.assertEquals(func.getOperands().get(3).getLiteral().getDoubleValue(), 15.2);
     Assert.assertEquals(func.getOperands().get(4).getLiteral().getLongValue(), 17L);
     PinotQuery2BrokerRequestConverter converter = new PinotQuery2BrokerRequestConverter();
     BrokerRequest tempBrokerRequest = converter.convert(pinotQuery);
-    Assert.assertEquals(tempBrokerRequest.getQuerySource().getTableName(), "VEGETABLES");
+    Assert.assertEquals(tempBrokerRequest.getQuerySource().getTableName(), "vegetables");
     Assert.assertNull(tempBrokerRequest.getSelections());
     Assert.assertEquals(tempBrokerRequest.getAggregationsInfo().get(0).getAggregationType(), "SUM");
     Assert.assertEquals(tempBrokerRequest.getAggregationsInfo().get(1).getAggregationType(), "COUNT");
-    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getColumn(), "G");
+    Assert.assertEquals(tempBrokerRequest.getFilterQuery().getColumn(), "g");
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().size(), 4);
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(0), "12");
     Assert.assertEquals(tempBrokerRequest.getFilterQuery().getValue().get(1), "13");
@@ -241,10 +241,12 @@ public class CalciteSqlCompilerTest {
 
   @Test
   public void testCStyleInequalityOperator() {
-
     PinotQuery pinotQuery =
         CalciteSqlParser.compileToPinotQuery("select * from vegetables where name <> 'Brussels sprouts'");
     Assert.assertEquals(pinotQuery.getFilterExpression().getFunctionCall().getOperator(), "NOT_EQUALS");
+
+    // Bang equal '!=' is not allowed under the current SQL conformance level
+    assertCompilationFails("select * from vegetables where name != 'Brussels sprouts'");
   }
 
   @Test
@@ -283,8 +285,8 @@ public class CalciteSqlCompilerTest {
         .compileToPinotQuery("select avg(attributes.age) as avg_age from person group by attributes.address_city");
     Assert.assertEquals(
         pinotQuery.getSelectList().get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(0)
-            .getIdentifier().getName(), "ATTRIBUTES.AGE");
-    Assert.assertEquals(pinotQuery.getGroupByList().get(0).getIdentifier().getName(), "ATTRIBUTES.ADDRESS_CITY");
+            .getIdentifier().getName(), "attributes.age");
+    Assert.assertEquals(pinotQuery.getGroupByList().get(0).getIdentifier().getName(), "attributes.address_city");
   }
 
   @Test
@@ -294,7 +296,7 @@ public class CalciteSqlCompilerTest {
 
     // Allow string literal column in aggregation and group-by query
     PinotQuery pinotQuery =
-        CalciteSqlParser.compileToPinotQuery("SELECT SUM('foo'), MAX(\"bar\") FROM myTable GROUP BY 'foo', \"bar\"");
+        CalciteSqlParser.compileToPinotQuery("SELECT SUM('foo'), MAX(bar) FROM myTable GROUP BY 'foo', bar");
     List<Expression> selectFunctionList = pinotQuery.getSelectList();
     Assert.assertEquals(selectFunctionList.size(), 2);
     Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(),
@@ -307,8 +309,8 @@ public class CalciteSqlCompilerTest {
     Assert.assertEquals(groupbyList.get(1).getIdentifier().getName(), "bar");
 
     // For UDF, string literal won't be treated as column but as LITERAL
-    pinotQuery =
-        CalciteSqlParser.compileToPinotQuery("SELECT SUM(ADD(foo, 'bar')) FROM myTable GROUP BY SUB(\"foo\", bar)");
+    pinotQuery = CalciteSqlParser
+        .compileToPinotQuery("SELECT SUM(ADD(foo, 'bar')) FROM myTable GROUP BY sub(foo, bar), SUB(BAR, FOO)");
     selectFunctionList = pinotQuery.getSelectList();
     Assert.assertEquals(selectFunctionList.size(), 1);
     Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperator(), "SUM");
@@ -320,16 +322,21 @@ public class CalciteSqlCompilerTest {
         selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().size(), 2);
     Assert.assertEquals(
         selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(0)
-            .getIdentifier().getName(), "FOO");
+            .getIdentifier().getName(), "foo");
     Assert.assertEquals(
         selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1)
             .getLiteral().getStringValue(), "bar");
     groupbyList = pinotQuery.getGroupByList();
-    Assert.assertEquals(groupbyList.size(), 1);
-    Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "SUB");
+    Assert.assertEquals(groupbyList.size(), 2);
+    Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "sub");
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().size(), 2);
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(0).getIdentifier().getName(), "foo");
-    Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(1).getIdentifier().getName(), "BAR");
+    Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(1).getIdentifier().getName(), "bar");
+
+    Assert.assertEquals(groupbyList.get(1).getFunctionCall().getOperator(), "SUB");
+    Assert.assertEquals(groupbyList.get(1).getFunctionCall().getOperands().size(), 2);
+    Assert.assertEquals(groupbyList.get(1).getFunctionCall().getOperands().get(0).getIdentifier().getName(), "BAR");
+    Assert.assertEquals(groupbyList.get(1).getFunctionCall().getOperands().get(1).getIdentifier().getName(), "FOO");
   }
 
   @Test

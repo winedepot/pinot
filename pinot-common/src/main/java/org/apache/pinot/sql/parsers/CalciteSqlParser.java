@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.calcite.config.Lex;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
@@ -47,6 +48,14 @@ import org.slf4j.LoggerFactory;
 public class CalciteSqlParser {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CalciteSqlParser.class);
+
+  /** Lexical policy similar to MySQL with ANSI_QUOTES option enabled. (To be
+   * precise: MySQL on Windows; MySQL on Linux uses case-sensitive matching,
+   * like the Linux file system.) The case of identifiers is preserved whether
+   * or not they quoted; after which, identifiers are matched
+   * case-insensitively. Double quotes allow identifiers to contain
+   * non-alphanumeric characters. */
+  private static Lex PINOT_LEX = Lex.MYSQL_ANSI;
 
   // To Keep the backward compatibility with 'OPTION' Functionality in PQL, which is used to
   // provide more hints for query processing.
@@ -95,6 +104,7 @@ public class CalciteSqlParser {
 
   private static PinotQuery compileCalciteSqlToPinotQuery(String sql) {
     SqlParser.ConfigBuilder parserBuilder = SqlParser.configBuilder();
+    parserBuilder.setLex(PINOT_LEX);
     SqlParser sqlParser = SqlParser.create(sql, parserBuilder.build());
     final SqlNode sqlNode;
     try {

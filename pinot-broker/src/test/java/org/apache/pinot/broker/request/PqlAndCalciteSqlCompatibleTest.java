@@ -120,7 +120,7 @@ public class PqlAndCalciteSqlCompatibleTest {
     if (!result) {
       StringBuilder sb = new StringBuilder();
 
-      if (!br1.getQuerySource().getTableName().equalsIgnoreCase(br2.getQuerySource().getTableName())) {
+      if (!br1.getQuerySource().getTableName().equals(br2.getQuerySource().getTableName())) {
         sb.append("br1.getQuerySource().getTableName() = ").append(br1.getQuerySource().getTableName()).append("\n")
             .append("br2.getQuerySource().getTableName() = ").append(br2.getQuerySource().getTableName());
         LOGGER.error("QuerySource did not match after conversion.{}", sb);
@@ -185,7 +185,7 @@ public class PqlAndCalciteSqlCompatibleTest {
   }
 
   private boolean validateAggregation(AggregationInfo agg1, AggregationInfo agg2) {
-    if (!agg1.getAggregationType().equalsIgnoreCase(agg2.getAggregationType())) {
+    if (!agg1.getAggregationType().equals(agg2.getAggregationType())) {
       LOGGER.error("Failed to validate AggregationInfo: AggregationType doesn't match.\n\t{}\n\t{}", agg1, agg2);
       return false;
     }
@@ -195,7 +195,7 @@ public class PqlAndCalciteSqlCompatibleTest {
     }
     for (int i = 0; i < agg1.getAggregationParamsSize(); i++) {
       for (String key : agg1.getAggregationParams().keySet()) {
-        if (!agg1.getAggregationParams().get(key).equalsIgnoreCase(agg2.getAggregationParams().get(key))) {
+        if (!agg1.getAggregationParams().get(key).equals(agg2.getAggregationParams().get(key))) {
           LOGGER
               .error("Failed to validate AggregationInfo: AggregationParams at key {} doesn't match.\n\t{}\n\t{}", key,
                   agg1.getAggregationParams().get(key), agg2.getAggregationParams().get(key));
@@ -214,7 +214,7 @@ public class PqlAndCalciteSqlCompatibleTest {
     for (int i = 0; i < groupBy1.getExpressions().size(); i++) {
       final String s1 = groupBy1.getExpressions().get(i);
       final String s2 = groupBy2.getExpressions().get(i);
-      if (!s1.equalsIgnoreCase(s2)) {
+      if (!s1.equals(s2)) {
         LOGGER.error("Failed to validate GroupBy: Expressions at idx {} doesn't match.\n\t{}\n\t{}", i, s1, s2);
         return false;
       }
@@ -228,7 +228,7 @@ public class PqlAndCalciteSqlCompatibleTest {
       return false;
     }
     for (int i = 0; i < s1.getSelectionColumns().size(); i++) {
-      if (!s1.getSelectionColumns().get(i).equalsIgnoreCase(s2.getSelectionColumns().get(i))) {
+      if (!s1.getSelectionColumns().get(i).equals(s2.getSelectionColumns().get(i))) {
         LOGGER.error("Failed to validate Selections: SelectionColumn at idx {} doesn't match.\n\t{}\n\t{}", i, s1, s2);
         return false;
       }
@@ -240,7 +240,7 @@ public class PqlAndCalciteSqlCompatibleTest {
     if (s1.getSelectionSortSequence() != null) {
       for (int i = 0; i < s1.getSelectionSortSequence().size(); i++) {
         if (!s1.getSelectionSortSequence().get(i).getColumn()
-            .equalsIgnoreCase(s2.getSelectionSortSequence().get(i).getColumn())) {
+            .equals(s2.getSelectionSortSequence().get(i).getColumn())) {
           LOGGER
               .error("Failed to validate Selections: SelectionSortSequence Column at idx {} doesn't match.\n\t{}\n\t{}",
                   i, s1, s2);
@@ -275,7 +275,7 @@ public class PqlAndCalciteSqlCompatibleTest {
       return false;
     }
     if (fq1.getColumn() != null) {
-      if (!fq1.getColumn().equalsIgnoreCase(fq2.getColumn())) {
+      if (!fq1.getColumn().equals(fq2.getColumn())) {
         LOGGER.error("Failed to validate FilterQuery: Column doesn't match.\n\t{}\n\t{}", fq1, fq2);
         return false;
       }
@@ -292,7 +292,7 @@ public class PqlAndCalciteSqlCompatibleTest {
       for (int i = 0; i < fq1.getValue().size(); i++) {
         final String s1 = fq1.getValue().get(i);
         final String s2 = fq2.getValue().get(i);
-        if (!s1.equalsIgnoreCase(s2)) {
+        if (!s1.equals(s2)) {
           LOGGER.error("Failed to validate FilterQuery: value at idx {} doesn't match.\n\t{}\n\t{}\n\t{}\n\t{}", i, fq1,
               fq2, s1, s2);
           return false;
