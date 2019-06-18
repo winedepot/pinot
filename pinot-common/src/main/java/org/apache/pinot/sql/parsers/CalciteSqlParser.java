@@ -48,6 +48,16 @@ public class CalciteSqlParser {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(CalciteSqlParser.class);
 
+  // To Keep the backward compatibility with 'OPTION' Functionality in PQL, which is used to
+  // provide more hints for query processing.
+  //
+  // PQL syntax is: `OPTION (<key> = <value>)`
+  //
+  // Multiple OPTIONs is also supported by:
+  // either
+  //   `OPTION (<k1> = <v1>, <k2> = <v2>, <k3> = <v3>)`
+  // or
+  //   `OPTION (<k1> = <v1>) OPTION (<k2> = <v2>) OPTION (<k3> = <v3>)`
   private static final Pattern OPTIONS_REGEX_PATTEN =
       Pattern.compile("option\\s*\\(([^\\)]+)\\)", Pattern.CASE_INSENSITIVE);
 
@@ -194,7 +204,6 @@ public class CalciteSqlParser {
   }
 
   private static Expression toExpression(SqlNode node) {
-    // System.out.printf("Current processing SqlNode: %s, node.getKind(): %s\n", node, node.getKind());
     LOGGER.debug("Current processing SqlNode: {}, node.getKind(): {}", node, node.getKind());
     switch (node.getKind()) {
       case IDENTIFIER:
@@ -249,18 +258,6 @@ public class CalciteSqlParser {
         return funcExpr;
       default:
         throw new RuntimeException("Unknown node type: " + node.getKind());
-    }
-  }
-
-  public static void main(String[] args) {
-    String[] sqlList =
-        {"select * from vegetables where name <> 'Brussels sprouts' OPTION (delicious=yes) option(foo=1234) option(bar='potato')", "SELECT * FROM myTable ORDER BY A, udf(B) DESC, C ASC LIMIT 10 ", "SELECT * FROM myTable WHERE (A=1) AND abs(B) >4 OR udf2(C) BETWEEN \"hefei\" and \"shanghai\" LIMIT 10", "SELECT count(*) as cnt, SUM(met1) as sum_met1, count(DISTINCT dim) as unique_dim2_cnt, dim3, dim4 FROM myTable WHERE (A=1) AND abs(B) >4 OR udf2(C) BETWEEN \"hefei\" and \"shanghai\" OR f IN ('a', 'b', \"c\", \"d\") GROUP BY dim3, dim4 ORDER BY cnt DESC LIMIT 10"};
-    for (String sql : sqlList) {
-      final PinotQuery pinotQuery = CalciteSqlParser.compileToPinotQuery(sql);
-      System.out.printf("Parsed Sql statement:\n" + "****************************************\n" + "%s"
-              + "\n****************************************\n****************************************\n"
-              + "CalciteSqlParser.toPinotQuery(parsedSqlNode):\n" + "%s" + "\n****************************************\n",
-          sql, pinotQuery);
     }
   }
 }
