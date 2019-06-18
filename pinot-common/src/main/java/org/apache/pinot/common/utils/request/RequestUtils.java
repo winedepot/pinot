@@ -102,7 +102,7 @@ public class RequestUtils {
         literal.setDoubleValue(node.bigDecimalValue().doubleValue());
       }
     } else {
-      literal.setStringValue(node.toString());
+      literal.setStringValue(node.toString().replaceAll("^\'|\'$", ""));
     }
     expression.setLiteral(literal);
     return expression;

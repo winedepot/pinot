@@ -18,6 +18,9 @@
  */
 package org.apache.pinot.sql.parsers;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.pinot.common.request.BrokerRequest;
@@ -26,6 +29,8 @@ import org.apache.pinot.common.request.FilterOperator;
 import org.apache.pinot.common.request.Function;
 import org.apache.pinot.common.request.PinotQuery;
 import org.apache.pinot.pql.parsers.PinotQuery2BrokerRequestConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -35,6 +40,7 @@ import org.testng.annotations.Test;
  */
 public class CalciteSqlCompilerTest {
 
+  private static final Logger LOGGER = LoggerFactory.getLogger(CalciteSqlCompilerTest.class);
   @Test
   public void testQuotedStrings() {
 
@@ -42,12 +48,12 @@ public class CalciteSqlCompilerTest {
         CalciteSqlParser.compileToPinotQuery("select * from vegetables where origin = 'Martha''s Vineyard'");
     Assert.assertEquals(
         pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getLiteral().getStringValue(),
-        "'Martha''s Vineyard'");
+        "Martha''s Vineyard");
 
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where origin = 'Martha\"\"s Vineyard'");
     Assert.assertEquals(
         pinotQuery.getFilterExpression().getFunctionCall().getOperands().get(1).getLiteral().getStringValue(),
-        "'Martha\"\"s Vineyard'");
+        "Martha\"\"s Vineyard");
 
     pinotQuery =
         CalciteSqlParser.compileToPinotQuery("select * from vegetables where origin = \"Martha\"\"s Vineyard\"");
@@ -93,12 +99,12 @@ public class CalciteSqlCompilerTest {
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), "REGEXP_LIKE");
     Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "E");
-    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "'^U.*'");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "^U.*");
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where f LIKE '%potato%'");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.LIKE.name());
     Assert.assertEquals(func.getOperands().get(0).getIdentifier().getName(), "F");
-    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "'%potato%'");
+    Assert.assertEquals(func.getOperands().get(1).getLiteral().getStringValue(), "%potato%");
     pinotQuery = CalciteSqlParser.compileToPinotQuery("select * from vegetables where g IN (12, 13, 15.2, 17)");
     func = pinotQuery.getFilterExpression().getFunctionCall();
     Assert.assertEquals(func.getOperator(), SqlKind.IN.name());
@@ -292,12 +298,12 @@ public class CalciteSqlCompilerTest {
     List<Expression> selectFunctionList = pinotQuery.getSelectList();
     Assert.assertEquals(selectFunctionList.size(), 2);
     Assert.assertEquals(selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getLiteral().getStringValue(),
-        "'foo'");
+        "foo");
     Assert.assertEquals(selectFunctionList.get(1).getFunctionCall().getOperands().get(0).getIdentifier().getName(),
         "bar");
     List<Expression> groupbyList = pinotQuery.getGroupByList();
     Assert.assertEquals(groupbyList.size(), 2);
-    Assert.assertEquals(groupbyList.get(0).getLiteral().getStringValue(), "'foo'");
+    Assert.assertEquals(groupbyList.get(0).getLiteral().getStringValue(), "foo");
     Assert.assertEquals(groupbyList.get(1).getIdentifier().getName(), "bar");
 
     // For UDF, string literal won't be treated as column but as LITERAL
@@ -317,12 +323,70 @@ public class CalciteSqlCompilerTest {
             .getIdentifier().getName(), "FOO");
     Assert.assertEquals(
         selectFunctionList.get(0).getFunctionCall().getOperands().get(0).getFunctionCall().getOperands().get(1)
-            .getLiteral().getStringValue(), "'bar'");
+            .getLiteral().getStringValue(), "bar");
     groupbyList = pinotQuery.getGroupByList();
     Assert.assertEquals(groupbyList.size(), 1);
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperator(), "SUB");
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().size(), 2);
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(0).getIdentifier().getName(), "foo");
     Assert.assertEquals(groupbyList.get(0).getFunctionCall().getOperands().get(1).getIdentifier().getName(), "BAR");
+  }
+
+  @Test
+  public void testConverter()
+      throws IOException {
+    CalciteSqlParser.compileToPinotQuery("SELECT MIN(div(DaysSinceEpoch,2)) FROM mytable");
+    CalciteSqlParser.compileToPinotQuery(
+        "SELECT SUM(DepDelayMinutes), SUM(ArrDel15), SUM(DepDelay), SUM(DepDel15) FROM myStarTable WHERE Carrier IN ('UA', 'WN', 'FL', 'F9') AND Carrier NOT IN ('EV', 'AS', 'FL') AND DayofMonth > 5 AND DayofMonth <= 17 AND Diverted > 0 AND OriginCityName > 'Detroit, MI' GROUP BY CRSDepTime");
+    CalciteSqlParser.compileToPinotQuery("Select * from T where a > 1 and a < 10");
+    CalciteSqlParser.compileToPinotQuery("Select * from T where a between 1 and 10");
+
+    final BufferedReader br = new BufferedReader(
+        new InputStreamReader(CalciteSqlCompilerTest.class.getClassLoader().getResourceAsStream("sql_queries.list")));
+    String sql;
+    int seqId = 0;
+    while ((sql = br.readLine()) != null) {
+      BrokerRequest brokerRequest;
+      PinotQuery pinotQuery;
+      try {
+        LOGGER.info("Trying to compile SQL Id - {}, SQL: {}", seqId, sql);
+        System.out.println(String.format("Trying to compile SQL Id - %d, SQL: %s", seqId, sql));
+        pinotQuery = CalciteSqlParser.compileToPinotQuery(sql);
+        brokerRequest = new PinotQuery2BrokerRequestConverter().convert(pinotQuery);
+        LOGGER.debug("Compiled SQL: Id - {}, PinotQuery: {}, BrokerRequest: {}", seqId, pinotQuery, brokerRequest);
+        seqId++;
+      } catch (Exception e) {
+        LOGGER.error("Failed to compile SQL {} to BrokerRequest.", sql, e);
+        throw e;
+      }
+    }
+  }
+
+
+  @Test
+  public void testPqlAndSqlCompatible()
+      throws IOException {
+    final BufferedReader brSql = new BufferedReader(
+        new InputStreamReader(CalciteSqlCompilerTest.class.getClassLoader().getResourceAsStream("sql_queries.list")));
+    final BufferedReader brPql = new BufferedReader(
+        new InputStreamReader(CalciteSqlCompilerTest.class.getClassLoader().getResourceAsStream("pql_queries.list")));
+    String sql;
+    int seqId = 0;
+    while ((sql = brSql.readLine()) != null) {
+      final String pql = brPql.readLine();
+      BrokerRequest brokerRequest;
+      PinotQuery pinotQuery;
+      try {
+        LOGGER.info("Trying to compile SQL Id - {}, SQL: {}", seqId, sql);
+        System.out.println(String.format("Trying to compile SQL Id - %d, SQL: %s", seqId, sql));
+        pinotQuery = CalciteSqlParser.compileToPinotQuery(sql);
+        brokerRequest = new PinotQuery2BrokerRequestConverter().convert(pinotQuery);
+        LOGGER.debug("Compiled SQL: Id - {}, PinotQuery: {}, BrokerRequest: {}", seqId, pinotQuery, brokerRequest);
+        seqId++;
+      } catch (Exception e) {
+        LOGGER.error("Failed to compile SQL {} to BrokerRequest.", sql, e);
+        throw e;
+      }
+    }
   }
 }
