@@ -101,7 +101,6 @@ public class Connection {
     return new ResultSetGroup(response);
   }
 
-
   /**
    * Executes a SQL statement.
    *

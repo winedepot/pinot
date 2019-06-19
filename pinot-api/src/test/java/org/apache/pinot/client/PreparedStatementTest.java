@@ -30,6 +30,9 @@ import org.testng.annotations.Test;
  *
  */
 public class PreparedStatementTest {
+  private DummyPinotClientTransport _dummyPinotClientTransport = new DummyPinotClientTransport();
+  private PinotClientTransportFactory _previousTransportFactory = null;
+
   @Test
   public void testPreparedStatementEscaping() {
     // Create a prepared statement that has to quote a string appropriately
@@ -42,8 +45,16 @@ public class PreparedStatementTest {
     Assert.assertEquals("SELECT foo FROM bar WHERE baz = '''hello'''", _dummyPinotClientTransport.getLastQuery());
   }
 
-  private DummyPinotClientTransport _dummyPinotClientTransport = new DummyPinotClientTransport();
-  private PinotClientTransportFactory _previousTransportFactory = null;
+  @BeforeClass
+  public void overridePinotClientTransport() {
+    _previousTransportFactory = ConnectionFactory._transportFactory;
+    ConnectionFactory._transportFactory = new DummyPinotClientTransportFactory();
+  }
+
+  @AfterClass
+  public void resetPinotClientTransport() {
+    ConnectionFactory._transportFactory = _previousTransportFactory;
+  }
 
   class DummyPinotClientTransport implements PinotClientTransport {
     private String _lastQuery;
@@ -86,16 +97,5 @@ public class PreparedStatementTest {
     public PinotClientTransport buildTransport() {
       return _dummyPinotClientTransport;
     }
-  }
-
-  @BeforeClass
-  public void overridePinotClientTransport() {
-    _previousTransportFactory = ConnectionFactory._transportFactory;
-    ConnectionFactory._transportFactory = new DummyPinotClientTransportFactory();
-  }
-
-  @AfterClass
-  public void resetPinotClientTransport() {
-    ConnectionFactory._transportFactory = _previousTransportFactory;
   }
 }
