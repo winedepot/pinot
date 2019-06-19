@@ -40,10 +40,16 @@ import org.testng.annotations.Test;
 
 /**
  * Some tests for the SQL compiler.
+ * Please note that this test will load test resources: `pql_queries.list` and `pql_queries.list` under `pinot-common` module.
  */
 public class PqlAndCalciteSqlCompatibleTest {
 
   private static final Pql2Compiler COMPILER = new Pql2Compiler();
+
+  // OPTIMIZER is used to flatten certain queries with filtering optimization.
+  // The reason is that SQL parser will parse the structure into a binary tree mode.
+  // PQL parser will flat the case of multiple children under AND/OR.
+  // After optimization, both BrokerRequests from PQL and SQL should look the same and be easier to compare.
   private static final BrokerRequestOptimizer OPTIMIZER = new BrokerRequestOptimizer();
   private static final Logger LOGGER = LoggerFactory.getLogger(PqlAndCalciteSqlCompatibleTest.class);
 
@@ -90,7 +96,6 @@ public class PqlAndCalciteSqlCompatibleTest {
 
         // PQL
         LOGGER.info("Trying to compile PQL Id - {}, PQL: {}", seqId, pql);
-        // NOTE: SQL is always using upper cases, so we need to make the string to upper case in order to match the parsed identifier name.
         final BrokerRequest brokerRequestFromPQL = OPTIMIZER.optimize(COMPILER.compileToBrokerRequest(pql), null);
         LOGGER.debug("Compiled PQL: Id - {}, PQL: {}, BrokerRequest: {}", seqId, pql, brokerRequestFromPQL);
         brokerRequestFromPQL.unsetPinotQuery();
