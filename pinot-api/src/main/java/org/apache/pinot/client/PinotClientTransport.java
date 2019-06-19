@@ -30,4 +30,10 @@ interface PinotClientTransport {
 
   Future<BrokerResponse> executeQueryAsync(String brokerAddress, String query)
       throws PinotClientException;
+
+  BrokerResponse executeSqlQuery(String brokerAddress, String query)
+      throws PinotClientException;
+
+  Future<BrokerResponse> executeSqlQueryAsync(String brokerAddress, String query)
+      throws PinotClientException;
 }

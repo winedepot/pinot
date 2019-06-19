@@ -99,6 +99,10 @@ public class DeleteAPIHybridClusterIntegrationTest extends HybridClusterIntegrat
   }
 
   @Override // Leaving this out because it is done in the superclass
+  public void testSqlQueriesFromQueryFile() {
+  }
+
+  @Override // Leaving this out because it is done in the superclass
   public void testBrokerDebugOutput() {
   }
 
