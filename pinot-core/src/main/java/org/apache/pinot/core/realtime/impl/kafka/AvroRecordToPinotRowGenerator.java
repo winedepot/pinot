@@ -19,6 +19,8 @@
 package org.apache.pinot.core.realtime.impl.kafka;
 
 import com.google.common.base.Preconditions;
+import java.util.Map;
+import java.util.TreeSet;
 import javax.annotation.Nonnull;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericData.Array;
@@ -30,6 +32,7 @@ import org.apache.pinot.core.util.AvroUtils;
 
 
 public class AvroRecordToPinotRowGenerator {
+
   private final Schema _schema;
   private final FieldSpec _incomingTimeFieldSpec;
 
@@ -49,13 +52,39 @@ public class AvroRecordToPinotRowGenerator {
           fieldSpec.getFieldType() == FieldSpec.FieldType.TIME ? _incomingTimeFieldSpec : fieldSpec;
       String fieldName = incomingFieldSpec.getName();
       Object avroValue = from.get(fieldName);
-      if (incomingFieldSpec.isSingleValueField()) {
+      //Handle MAP types
+      if (fieldName.toUpperCase().endsWith("__KEYS")) {
+        String avroFieldName = fieldName.replaceAll("__KEYS", "");
+        Object o = from.get(avroFieldName);
+        if (o instanceof Map) {
+          Map map = (Map) o;
+          TreeSet sortedKeySet = new TreeSet<>(map.keySet());
+          Object[] keys = new Object[map.size()];
+          int i = 0;
+          for (Object key : sortedKeySet) {
+            keys[i++] = AvroUtils.transformAvroValueToObject(key, incomingFieldSpec);
+          }
+          to.putField(fieldName, keys);
+        }
+      } else if (fieldName.toUpperCase().endsWith("__VALUES")) {
+        String avroFieldName = fieldName.replaceAll("__VALUES", "");
+        Object o = from.get(avroFieldName);
+        if (o instanceof Map) {
+          Map map = (Map) o;
+          TreeSet sortedKeySet = new TreeSet<>(map.keySet());
+          Object[] values = new Object[map.size()];
+          int i = 0;
+          for (Object key : sortedKeySet) {
+            values[i++] = AvroUtils.transformAvroValueToObject(map.get(key), incomingFieldSpec);
+          }
+          to.putField(fieldName, values);
+        }
+      } else if (incomingFieldSpec.isSingleValueField()) {
         to.putField(fieldName, AvroUtils.transformAvroValueToObject(avroValue, incomingFieldSpec));
       } else {
         to.putField(fieldName, AvroUtils.transformAvroArrayToObjectArray((Array) avroValue, incomingFieldSpec));
       }
     }
-
     return to;
   }
 }
