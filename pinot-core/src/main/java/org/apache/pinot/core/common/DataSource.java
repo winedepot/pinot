@@ -22,6 +22,7 @@ import org.apache.pinot.core.operator.BaseOperator;
 import org.apache.pinot.core.segment.index.readers.BloomFilterReader;
 import org.apache.pinot.core.segment.index.readers.Dictionary;
 import org.apache.pinot.core.segment.index.readers.InvertedIndexReader;
+import org.apache.pinot.core.segment.index.readers.PresenceVectorReader;
 
 
 public abstract class DataSource extends BaseOperator {
@@ -33,4 +34,7 @@ public abstract class DataSource extends BaseOperator {
   public abstract Dictionary getDictionary();
 
   public abstract BloomFilterReader getBloomFilter();
+
+  public abstract PresenceVectorReader getPresenceVector();
+
 }
