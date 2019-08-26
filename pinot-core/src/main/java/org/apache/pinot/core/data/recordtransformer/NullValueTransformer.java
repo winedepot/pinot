@@ -18,10 +18,15 @@
  */
 package org.apache.pinot.core.data.recordtransformer;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.Schema;
 import org.apache.pinot.core.data.GenericRow;
+
+import static org.apache.pinot.common.utils.CommonConstants.Segment.NULL_FIELDS;
 
 
 public class NullValueTransformer implements RecordTransformer {
@@ -33,16 +38,25 @@ public class NullValueTransformer implements RecordTransformer {
 
   @Override
   public GenericRow transform(GenericRow record) {
+    // TODO: Consider using a set instead of list
+    List<String> nullFields = null;
     for (FieldSpec fieldSpec : _fieldSpecs) {
       String fieldName = fieldSpec.getName();
       // Do not allow default value for time column
       if (record.getValue(fieldName) == null && fieldSpec.getFieldType() != FieldSpec.FieldType.TIME) {
+        if (nullFields == null) {
+          nullFields = new ArrayList<>();
+        }
+        nullFields.add(fieldName);
         if (fieldSpec.isSingleValueField()) {
           record.putField(fieldName, fieldSpec.getDefaultNullValue());
         } else {
           record.putField(fieldName, new Object[]{fieldSpec.getDefaultNullValue()});
         }
       }
+    }
+    if (nullFields != null) {
+      record.putField(NULL_FIELDS, nullFields.stream().collect(Collectors.joining(",")));
     }
     return record;
   }
