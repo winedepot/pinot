@@ -18,9 +18,7 @@
  */
 package org.apache.pinot.core.data.recordtransformer;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.Schema;
@@ -38,16 +36,24 @@ public class NullValueTransformer implements RecordTransformer {
 
   @Override
   public GenericRow transform(GenericRow record) {
-    // TODO: Consider using a set instead of list
-    List<String> nullFields = null;
+    Set<String> nullColumnNamesSet = null;
+
+    // Clear out the 'null_fields' value in case the Generic row is reused
+    record.putField(NULL_FIELDS, null);
+
     for (FieldSpec fieldSpec : _fieldSpecs) {
       String fieldName = fieldSpec.getName();
       // Do not allow default value for time column
       if (record.getValue(fieldName) == null && fieldSpec.getFieldType() != FieldSpec.FieldType.TIME) {
-        if (nullFields == null) {
-          nullFields = new ArrayList<>();
+        if (nullColumnNamesSet == null) {
+          nullColumnNamesSet = new HashSet<>();
         }
-        nullFields.add(fieldName);
+
+        // Only handle null columns for non-virtual columns
+        if (!fieldSpec.isVirtualColumn()) {
+          nullColumnNamesSet.add(fieldName);
+        }
+
         if (fieldSpec.isSingleValueField()) {
           record.putField(fieldName, fieldSpec.getDefaultNullValue());
         } else {
@@ -55,8 +61,9 @@ public class NullValueTransformer implements RecordTransformer {
         }
       }
     }
-    if (nullFields != null) {
-      record.putField(NULL_FIELDS, nullFields.stream().collect(Collectors.joining(",")));
+
+    if (nullColumnNamesSet != null) {
+      record.putField(NULL_FIELDS, String.join(",", nullColumnNamesSet));
     }
     return record;
   }
