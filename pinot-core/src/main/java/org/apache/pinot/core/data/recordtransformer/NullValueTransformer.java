@@ -23,35 +23,34 @@ import java.util.stream.Collectors;
 import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.Schema;
 import org.apache.pinot.core.data.GenericRow;
+import org.roaringbitmap.RoaringBitmap;
 
 import static org.apache.pinot.common.utils.CommonConstants.Segment.NULL_FIELDS;
 
 
 public class NullValueTransformer implements RecordTransformer {
   private final Collection<FieldSpec> _fieldSpecs;
+  private final Schema _schema;
 
   public NullValueTransformer(Schema schema) {
+    _schema = schema;
     _fieldSpecs = schema.getAllFieldSpecs();
   }
 
   @Override
   public GenericRow transform(GenericRow record) {
-    Set<String> nullColumnNamesSet = null;
-
-    // Clear out the 'null_fields' value in case the Generic row is reused
-    record.putField(NULL_FIELDS, null);
+    RoaringBitmap nullColumnBitMap = null;
 
     for (FieldSpec fieldSpec : _fieldSpecs) {
       String fieldName = fieldSpec.getName();
       // Do not allow default value for time column
       if (record.getValue(fieldName) == null && fieldSpec.getFieldType() != FieldSpec.FieldType.TIME) {
-        if (nullColumnNamesSet == null) {
-          nullColumnNamesSet = new HashSet<>();
-        }
-
         // Only handle null columns for non-virtual columns
         if (!fieldSpec.isVirtualColumn()) {
-          nullColumnNamesSet.add(fieldName);
+          if (nullColumnBitMap == null) {
+            nullColumnBitMap = new RoaringBitmap();
+          }
+          nullColumnBitMap.add(_schema.getColumnId(fieldName));
         }
 
         if (fieldSpec.isSingleValueField()) {
@@ -62,9 +61,7 @@ public class NullValueTransformer implements RecordTransformer {
       }
     }
 
-    if (nullColumnNamesSet != null) {
-      record.putField(NULL_FIELDS, String.join(",", nullColumnNamesSet));
-    }
+    record.putField(NULL_FIELDS, nullColumnBitMap);
     return record;
   }
 }
