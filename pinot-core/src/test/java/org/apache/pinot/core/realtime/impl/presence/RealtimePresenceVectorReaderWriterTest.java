@@ -16,25 +16,27 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pinot.core.common;
+package org.apache.pinot.core.realtime.impl.presence;
 
-import org.apache.pinot.core.operator.BaseOperator;
-import org.apache.pinot.core.segment.index.readers.BloomFilterReader;
-import org.apache.pinot.core.segment.index.readers.Dictionary;
-import org.apache.pinot.core.segment.index.readers.InvertedIndexReader;
-import org.apache.pinot.core.segment.index.readers.PresenceVectorReader;
+import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
+public class RealtimePresenceVectorReaderWriterTest {
+    private static RealtimePresenceVectorReaderWriter readerWriter = null;
 
-public abstract class DataSource extends BaseOperator {
+    @BeforeClass
+    public void setup() {
+        readerWriter = new RealtimePresenceVectorReaderWriter();
+    }
 
-  public abstract DataSourceMetadata getDataSourceMetadata();
-
-  public abstract InvertedIndexReader getInvertedIndex();
-
-  public abstract Dictionary getDictionary();
-
-  public abstract BloomFilterReader getBloomFilter();
-
-  public abstract PresenceVectorReader getPresenceVector();
-
+    @Test
+    public void testRealtimePresenceVectorReaderWriter() {
+        for (int i=0;i<100;i++) {
+            readerWriter.setNull(i);
+        }
+        for (int i=0;i<100;i++) {
+            Assert.assertFalse(readerWriter.isPresent(i));
+        }
+    }
 }

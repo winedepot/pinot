@@ -18,8 +18,7 @@
  */
 package org.apache.pinot.core.data.recordtransformer;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.Collection;
 import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.Schema;
 import org.apache.pinot.core.data.GenericRow;
