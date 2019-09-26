@@ -21,10 +21,9 @@ package org.apache.pinot.core.data.recordtransformer;
 import java.util.Collection;
 import org.apache.pinot.common.data.FieldSpec;
 import org.apache.pinot.common.data.Schema;
+import org.apache.pinot.common.utils.CommonConstants;
 import org.apache.pinot.core.data.GenericRow;
 import org.roaringbitmap.RoaringBitmap;
-
-import static org.apache.pinot.common.utils.CommonConstants.Segment.NULL_FIELDS;
 
 
 public class NullValueTransformer implements RecordTransformer {
@@ -60,7 +59,7 @@ public class NullValueTransformer implements RecordTransformer {
       }
     }
 
-    record.putField(NULL_FIELDS, nullColumnBitMap);
+    record.putField(CommonConstants.Segment.NULL_FIELDS, nullColumnBitMap);
     return record;
   }
 }
