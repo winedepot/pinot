@@ -18,6 +18,9 @@
  */
 package org.apache.pinot.core.segment.index.readers;
 
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+
+
 /**
  * Reader interface to read from an underlying Presence vector. This is
  * primarily used to check if a particular column value corresponding to
@@ -27,10 +30,23 @@ public interface PresenceVectorReader {
 
 
   /**
-   * Check if the given docId is present in the corresponding column
+   * Check if the given docId has a non-null value present in the
+   * corresponding column
    *
    * @param docId specifies ID to check for presence
    * @return true if docId is present (non null). False otherwise
    */
   boolean isPresent(int docId);
+
+  /**
+   * Return underlying null bitmap. This bitmap indicates which DocIDs
+   * have null values for the corresponding column
+   */
+  ImmutableRoaringBitmap getNullBitmap();
+
+  /**
+   * Return underlying presence bitmap. This bitmap indicates which DocIDs
+   * have non-null values for the corresponding column
+   */
+  ImmutableRoaringBitmap getPresenceBitmap();
 }

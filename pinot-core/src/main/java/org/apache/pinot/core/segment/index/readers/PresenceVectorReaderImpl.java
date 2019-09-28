@@ -25,18 +25,30 @@ import java.util.Random;
 import org.apache.pinot.core.segment.memory.PinotDataBuffer;
 import org.roaringbitmap.RoaringBitmap;
 import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+import org.roaringbitmap.buffer.MutableRoaringBitmap;
 
 
 public class PresenceVectorReaderImpl implements PresenceVectorReader {
 
   ImmutableRoaringBitmap _nullBitmap;
 
-  public PresenceVectorReaderImpl(PinotDataBuffer presenceVectorBuffer) throws IOException {
-    _nullBitmap = new ImmutableRoaringBitmap(presenceVectorBuffer.toDirectByteBuffer(0, (int) presenceVectorBuffer.size()));
+  public PresenceVectorReaderImpl(PinotDataBuffer presenceVectorBuffer)
+      throws IOException {
+    _nullBitmap =
+        new ImmutableRoaringBitmap(presenceVectorBuffer.toDirectByteBuffer(0, (int) presenceVectorBuffer.size()));
   }
 
   public boolean isPresent(int docId) {
     return !_nullBitmap.contains(docId);
   }
 
+  @Override
+  public ImmutableRoaringBitmap getNullBitmap() {
+    return _nullBitmap;
+  }
+
+  @Override
+  public ImmutableRoaringBitmap getPresenceBitmap() {
+    return ImmutableRoaringBitmap.flip(_nullBitmap, (long) _nullBitmap.first(), (long) _nullBitmap.last() + 1);
+  }
 }

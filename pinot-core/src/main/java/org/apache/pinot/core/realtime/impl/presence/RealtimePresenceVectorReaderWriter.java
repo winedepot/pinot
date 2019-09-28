@@ -19,6 +19,7 @@
 package org.apache.pinot.core.realtime.impl.presence;
 
 import org.apache.pinot.core.segment.index.readers.PresenceVectorReader;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.roaringbitmap.buffer.MutableRoaringBitmap;
 
 
@@ -38,5 +39,15 @@ public class RealtimePresenceVectorReaderWriter implements PresenceVectorReader 
 
   public boolean isPresent(int docId) {
     return !_nullBitmap.contains(docId);
+  }
+
+  @Override
+  public ImmutableRoaringBitmap getNullBitmap() {
+    return _nullBitmap.clone();
+  }
+
+  @Override
+  public ImmutableRoaringBitmap getPresenceBitmap() {
+    return ImmutableRoaringBitmap.flip(_nullBitmap, (long) _nullBitmap.first(), (long) _nullBitmap.last() + 1);
   }
 }

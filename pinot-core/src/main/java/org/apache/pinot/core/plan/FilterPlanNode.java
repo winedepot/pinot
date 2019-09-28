@@ -32,8 +32,10 @@ import org.apache.pinot.common.utils.request.FilterQueryTree;
 import org.apache.pinot.common.utils.request.RequestUtils;
 import org.apache.pinot.core.common.DataSource;
 import org.apache.pinot.core.common.Predicate;
+import org.apache.pinot.core.common.predicate.NEqPredicate;
 import org.apache.pinot.core.indexsegment.IndexSegment;
 import org.apache.pinot.core.operator.filter.BaseFilterOperator;
+import org.apache.pinot.core.operator.filter.BitmapBasedFilterOperator;
 import org.apache.pinot.core.operator.filter.EmptyFilterOperator;
 import org.apache.pinot.core.operator.filter.ExpressionFilterOperator;
 import org.apache.pinot.core.operator.filter.FilterOperatorUtils;
@@ -44,12 +46,14 @@ import org.apache.pinot.core.operator.transform.TransformResultMetadata;
 import org.apache.pinot.core.operator.transform.function.TransformFunction;
 import org.apache.pinot.core.operator.transform.function.TransformFunctionFactory;
 import org.apache.pinot.core.segment.index.readers.Dictionary;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
 public class FilterPlanNode implements PlanNode {
   private static final Logger LOGGER = LoggerFactory.getLogger(FilterPlanNode.class);
+  private static final String NULL_PREDICATE = "NULL";
   private final BrokerRequest _brokerRequest;
   private final IndexSegment _segment;
 
@@ -110,6 +114,16 @@ public class FilterPlanNode implements PlanNode {
     } else {
       // Leaf filter operator
       Predicate predicate = Predicate.newPredicate(filterQueryTree);
+
+      // Check for null predicate
+      if (predicate.getType().equals(Predicate.Type.NEQ)) {
+        NEqPredicate nEqPredicate = (NEqPredicate) predicate;
+        if (nEqPredicate.getNotEqualsValue().equalsIgnoreCase(NULL_PREDICATE)) {
+          DataSource dataSource = segment.getDataSource(filterQueryTree.getColumn());
+          ImmutableRoaringBitmap nullBitmap = dataSource.getPresenceVector().getNullBitmap();
+          return new BitmapBasedFilterOperator(new ImmutableRoaringBitmap[]{nullBitmap}, 0, numDocs-1, true);
+        }
+      }
 
       TransformExpressionTree expression = filterQueryTree.getExpression();
       if (expression.getExpressionType() == TransformExpressionTree.ExpressionType.FUNCTION) {
